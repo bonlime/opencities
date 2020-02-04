@@ -20,6 +20,7 @@ import os
 import subprocess
 from multiprocessing import Pool
 from functools import partial
+import time
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -33,6 +34,9 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
         zoom_level (int): zoom level
         outfile (str): name of output file
         val_percent (float): percent of images for validation. split is by y coordinate.
+    
+    Returns:
+        GeoPandas DF with tiles
     """
     outfile = outfile or f"z{zoom_level}tiles.geojson"
     # if not os.path.exists(outfile):
@@ -110,14 +114,14 @@ def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path='', prefix=
     # get poly inside the tile
     cropped_polys = [poly for poly in labels_poly if poly.intersects(tile_poly)]
     cropped_polys_gdf = gpd.GeoDataFrame(geometry=cropped_polys, crs=4326)
-
+    # TODO: do manually because I don't like their definition of contact
     fbc_mask = sol.vector.mask.df_to_px_mask(
         df=cropped_polys_gdf,
         channels=['footprint', 'boundary', 'contact'],
         affine_obj=tfm, shape=(tile_size,tile_size),
         boundary_width=5, boundary_type='inner', contact_spacing=5, meters=True
     )
-    skimage.io.imsave(f'{save_path}/{prefix}{z}_{x}_{y}_mask.png',fbc_mask, check_contrast=False) 
+    skimage.io.imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',fbc_mask, check_contrast=False) 
 
 def pool_wrapper(idx_tile):
     idx, tile = idx_tile
@@ -127,6 +131,7 @@ def pool_wrapper(idx_tile):
     save_tile_mask(all_polys, tile_poly, tile['xyz'], TILE_SIZE, save_path=MASKS_PATH,prefix=f'{area_name}_{name}_{dataset}_')
 
 if __name__ == "__main__":
+    start_time = time.time()
     DATA_ROOT_PATH = "/home/zakirov/datasets/opencities/train_tier_1/"
     train1_cat = Catalog.from_file(DATA_ROOT_PATH + 'catalog.json')
     cols = {cols.id:cols for cols in train1_cat.get_children()}
@@ -164,4 +169,5 @@ if __name__ == "__main__":
             pbar.close()
             # break
         break # FOR DEBUG
-
+    m = (time.time() - start_time) / 60
+    print(f"Total time: {m:.1f}m")
