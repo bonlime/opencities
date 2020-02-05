@@ -1,11 +1,15 @@
 import torch
 import albumentations.pytorch as albu_pt
 import pytorch_tools as pt
+import segmentation_models_pytorch as sm
 
 MODEL_FROM_NAME = {
     "unet": pt.segmentation_models.Unet,
     "linknet": pt.segmentation_models.Linknet,
     "deeplab": pt.segmentation_models.DeepLabV3,
+    "unet_sm": sm.Unet,
+    "linknet_sm": sm.Linknet,
+    "fpn_sm": sm.FPN,
 }
 
 # want also to transform mask

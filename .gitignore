@@ -1,6 +1,7 @@
 # This project gitignore
 data/
 logs/
+*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

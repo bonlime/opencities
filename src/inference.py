@@ -3,8 +3,10 @@
 import os
 import cv2
 import torch
+import shutil
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 
 import apex
 import pytorch_tools as pt
@@ -17,12 +19,6 @@ from dataset import OpenCitiesDataset, OpenCitiesTestDataset
 from utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
 
 
-MODEL_FROM_NAME = {
-    "unet": pt.segmentation_models.Unet,
-    "linknet": pt.segmentation_models.Linknet,
-    "deeplab": pt.segmentation_models.DeepLabV3,
-}
-
 def main():
     parser = get_parser()
     parser.add_argument("--no_val", action="store_true", help="Disable validation")
@@ -32,7 +28,7 @@ def main():
     assert os.path.exists(FLAGS.outdir), "You have to pass config after training to inference script"
     # get model
     print("Loading model")
-    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, num_classes=1)#.cuda()
+    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch)#.cuda()
     sd = torch.load(os.path.join(FLAGS.outdir, "model.chpn"))["state_dict"]
     model.load_state_dict(sd)
     model = model.cuda()
@@ -66,10 +62,11 @@ def main():
     test_dtst = OpenCitiesTestDataset(transform=test_aug)
     # test_dtld = DataLoader(val_dtst, batch_size=FLAGS.bs, shuffle=False, num_workers=8)
 
-    preds_path = "data/preds"
-    preds_preview_path = "data/preds_preview"
-    os.makedirs(preds_path, exist_ok=True)
-    os.makedirs(preds_preview_path, exist_ok=True)
+    preds_path = Path("data/preds")
+    preds_preview_path = Path(FLAGS.outdir) / "preds_preview"
+    shutil.rmtree(preds_preview_path, ignore_errors=True)
+    preds_path.mkdir(exist_ok=True)
+    preds_preview_path.mkdir(exist_ok=True)
 
     for imgs_count, (img, aug_img, idx) in enumerate(tqdm(test_dtst)):
         aug_img = aug_img.view(1, *aug_img.shape) # add batch dimension
@@ -80,11 +77,12 @@ def main():
         img2 = img.copy()
         img2[pred.astype(bool)] = [255, 0, 0]
         combined = cv2.cvtColor(np.hstack([img, img2]), cv2.COLOR_RGB2BGR)
-        cv2.imwrite(os.path.join(preds_preview_path, idx+".png"), combined)
-        cv2.imwrite(os.path.join(preds_path, idx+".tif"), pred)
-        
+        cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
         if FLAGS.short_predict and imgs_count > 10:
             break
+        if not FLAGS.short_predict:
+            cv2.imwrite(str(preds_path / (idx + ".tif")), pred)
+        
 
 
 if __name__ == "__main__":

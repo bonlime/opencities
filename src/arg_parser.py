@@ -22,7 +22,7 @@ def get_parser():
         "--segm_arch",
         default="unet",
         type=str,
-        choices=["unet", "linknet", "deeplab"],
+        # choices=["unet", "linknet", "deeplab"],
         help="Segmentation architecture to use",
     )
     add_arg(
@@ -45,6 +45,7 @@ def get_parser():
     add_arg("--weight_decay", "--wd", default=1e-4, type=float, help="weight decay (default: 1e-4)")
     add_arg("--size", default=256, type=int, help="Size of crops to train at")
     add_arg("--bs", default=16, type=int, help="Batch size")
+    add_arg("--lr", default=1e-3, type=float, help="starting learning rate")
     add_arg("--outdir", default="", type=str, help="Do not pass it manually")
     # inference args
     return parser
@@ -52,8 +53,8 @@ def get_parser():
      
 def parse_args():
     parser = get_parser()
-    # add timestamp to name and create this run folder
     args = parser.parse_args()
+    # add timestamp to name and create this run folder
     assert args.outdir == "", "Do not pass `outdir` param manually"
     timestamp = get_timestamp()
     args.name = args.name + "_" + timestamp if args.name else timestamp
