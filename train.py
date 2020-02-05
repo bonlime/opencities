@@ -1,5 +1,6 @@
 import os
 import yaml
+import time
 import numpy as np
 import albumentations as albu
 import albumentations.pytorch as albu_pt
@@ -63,7 +64,7 @@ def main():
         # FLAGS.start_epoch = checkpoint["epoch"]
         try:
             optimizer.load_state_dict(checkpoint["optimizer"])
-        except ValueError:  # may raise an error if another optimzer was used
+        except:  # may raise an error if another optimzer was used
             print("Failed to load state dict into optimizer")
     num_params = pt.utils.misc.count_parameters(model)[0]
     print(f"Number of parameters: {num_params / 1e6:.02f}M")
@@ -74,7 +75,7 @@ def main():
     
     ## get loss. fixed for now. TODO: add loss combinations
     loss = pt.losses.JaccardLoss(mode="binary").cuda()
-    # loss = pt.losses.CrossEntropyLoss(mode="binary").cuda()
+    loss = 0.5 * pt.losses.CrossEntropyLoss(mode="binary").cuda() + 0.5 * loss
 
     ## get runner
     tb_logger = pt.fit_wrapper.callbacks.TensorBoard(FLAGS.outdir)
@@ -112,5 +113,6 @@ def main():
 
 if __name__ == "__main__":
     ## TODO: add info about how long did training take
+    start_time = time.time()
     main()
-    print("Finished Training")
+    print(f"Finished Training. Took: {(time.time() - start_time) / 60:.02f}m")

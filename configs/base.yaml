@@ -4,9 +4,11 @@ tile_size: 512
 val_percent: 0.10
 
 # train config
-segm_arch: unet
-arch: se_resnet50
-optim: adamw
+segm_arch: deeplab
+arch: efficientnet_b2
+# optim: adamw
+optim: fused_adam
+lr: 3e-4
 workers: 8
 wd: 1e-4
 size: 256
@@ -14,5 +16,5 @@ bs: 32
 decoder_warmup_epochs: 10
 epochs: 100
 
-name: test_run_bce
-resume: logs/test_run_20200205_104932/model.chpn
+name: deeplab_effnet_dice_bce
+resume: logs/deeplab_effnet_20200205_173945/model.chpn

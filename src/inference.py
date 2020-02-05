@@ -77,10 +77,12 @@ def main():
         img2 = img.copy()
         img2[pred.astype(bool)] = [255, 0, 0]
         combined = cv2.cvtColor(np.hstack([img, img2]), cv2.COLOR_RGB2BGR)
-        cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
-        if FLAGS.short_predict and imgs_count > 10:
-            break
-        if not FLAGS.short_predict:
+        # only save preview with --short_predict. only save predicts for full test run. 
+        if FLAGS.short_predict:
+            cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
+            if imgs_count > 10:
+                break
+        else:
             cv2.imwrite(str(preds_path / (idx + ".tif")), pred)
         
 
