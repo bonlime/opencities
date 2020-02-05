@@ -1,0 +1,18 @@
+# slicer configs
+zoom_level: 19
+tile_size: 512
+val_percent: 0.10
+
+# train config
+segm_arch: unet
+arch: se_resnet50
+optim: adamw
+workers: 8
+wd: 1e-4
+size: 256
+bs: 32
+decoder_warmup_epochs: 10
+epochs: 100
+
+name: test_run_bce
+resume: logs/test_run_20200205_104932/model.chpn

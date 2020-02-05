@@ -22,6 +22,10 @@ from multiprocessing import Pool
 from functools import partial
 import time
 import warnings
+import configargparse as argparse
+
+# local import 
+from arg_parser import parse_args
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
@@ -132,12 +136,13 @@ def pool_wrapper(idx_tile):
 
 if __name__ == "__main__":
     start_time = time.time()
+    args = parse_args()
     DATA_ROOT_PATH = "/home/zakirov/datasets/opencities/train_tier_1/"
     train1_cat = Catalog.from_file(DATA_ROOT_PATH + 'catalog.json')
     cols = {cols.id:cols for cols in train1_cat.get_children()}
-    ZOOM_LEVEL=19
-    TILE_SIZE=512
-    VAL_PERCENT=0.15
+    ZOOM_LEVEL=args.zoom_level
+    TILE_SIZE=args.tile_size
+    VAL_PERCENT=args.val_percent
     # prepare data folders
     data_dir = Path('data')
     data_dir.mkdir(exist_ok=True)
@@ -146,6 +151,7 @@ if __name__ == "__main__":
     IMGS_PATH.mkdir(exist_ok=True)
     MASKS_PATH.mkdir(exist_ok=True)
     # iterate over different areas
+    print(f"Slicing images with zoom level={ZOOM_LEVEL}, tile size={TILE_SIZE} and {VAL_PERCENT} val split")
     for area_name, area_data in cols.items():
         print(f"\nProcessing area: {area_name}")
         area_labels = [i for i in area_data.get_all_items() if 'label' in i.id]
@@ -158,7 +164,7 @@ if __name__ == "__main__":
             print(f"\tProcessing id: {name}")
             labels_gdf = gpd.read_file(geojson_path)
             # get tiles
-            tiles_gdf = geojson_to_squares(geojson_path, zoom_level=ZOOM_LEVEL, val_percent=VAL_PERCENT)
+            tiles_gdf = geojson_to_squares(geojson_path, zoom_level=ZOOM_LEVEL, val_percent=VAL_PERCENT, outfile="/tmp/tiles.geojson")
             # get not overlappping polygons
             all_polys = cleanup_invalid_geoms(labels_gdf.geometry)
             # use multiprocessing to speedup chips generation
@@ -168,6 +174,6 @@ if __name__ == "__main__":
                     pbar.update()
             pbar.close()
             # break
-        break # FOR DEBUG
+        # break # FOR DEBUG
     m = (time.time() - start_time) / 60
     print(f"Total time: {m:.1f}m")
