@@ -10,6 +10,7 @@ MODEL_FROM_NAME = {
     "unet_sm": sm.Unet,
     "linknet_sm": sm.Linknet,
     "fpn_sm": sm.FPN,
+    "segm_fpn": pt.segmentation_models.SegmentationFPN,
 }
 
 # want also to transform mask

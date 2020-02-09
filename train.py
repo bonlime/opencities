@@ -13,6 +13,7 @@ import pytorch_tools as pt
 from pytorch_tools.optim import optimizer_from_name
 
 from src.arg_parser import parse_args
+from src.augmentations import get_aug
 from src.dataset import OpenCitiesDataset
 from src.utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
 
@@ -27,22 +28,8 @@ def main():
     yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
     ## get augmentations 
-    train_aug = albu.Compose([
-        albu.Flip(),
-        albu.ShiftScaleRotate(scale_limit=0.2),
-        albu.RandomResizedCrop(FLAGS.size, FLAGS.size, scale=(0.15, 0.8)),
-        albu.RandomBrightnessContrast(),
-        albu.HueSaturationValue(),
-        albu.RandomRotate90(),
-        albu.Normalize(),
-        ToTensor(),
-    ])
-
-    val_aug = albu.Compose([
-        albu.CenterCrop(FLAGS.size, FLAGS.size),
-        albu.Normalize(),
-        ToTensor(),
-    ])
+    train_aug = get_aug(FLAGS.augmentation, size=FLAGS.size)
+    val_aug = get_aug("val", size=FLAGS.size)
 
     ## get dataloaders
     val_dtst = OpenCitiesDataset(split="val", transform=val_aug, buildings_only=True)
@@ -54,7 +41,7 @@ def main():
     train_dtld = ToCudaLoader(train_dtld)
 
     ## get model and optimizer
-    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch).cuda()
+    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
     optimizer = optimizer_from_name(FLAGS.optim)(
         model.parameters(), lr=FLAGS.lr, weight_decay=FLAGS.weight_decay, # **FLAGS.optim_params TODO: add additional optim params if needed
     )
@@ -74,8 +61,11 @@ def main():
     model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=2048)
     
     ## get loss. fixed for now. TODO: add loss combinations
-    loss = pt.losses.JaccardLoss(mode="binary").cuda()
-    loss = 0.5 * pt.losses.CrossEntropyLoss(mode="binary").cuda() + 0.5 * loss
+    jacc_loss = pt.losses.JaccardLoss(mode="binary").cuda()
+    bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda()
+    bce_loss.name = "BCE"
+    loss = 0.5 * bce_loss + 0.5 * jacc_loss
+    # loss = jacc_loss
 
     ## get runner
     tb_logger = pt.fit_wrapper.callbacks.TensorBoard(FLAGS.outdir)
@@ -91,28 +81,33 @@ def main():
             tb_logger,
             pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn")
         ],
-        metrics=pt.metrics.JaccardScore(mode="binary").cuda(),
+        metrics=[
+            pt.metrics.JaccardScore(mode="binary").cuda(),
+            bce_loss,
+        ]
     )
 
-    ## freeze encoder
-    for p in model.encoder.parameters():
-        p.requires_grad = False
-    runner.fit(train_dtld, val_loader=val_dtld, epochs=FLAGS.decoder_warmup_epochs)
+    if FLAGS.decoder_warmup_epochs > 0:
+        ## freeze encoder
+        for p in model.encoder.parameters():
+            p.requires_grad = False
+        runner.fit(train_dtld, val_loader=val_dtld, epochs=FLAGS.decoder_warmup_epochs)
     
-    ## unfreeze all
-    for p in model.parameters():
-        p.requires_grad = True
+        ## unfreeze all
+        for p in model.parameters():
+            p.requires_grad = True
+            
     runner.fit(train_dtld, val_loader=val_dtld, start_epoch=FLAGS.decoder_warmup_epochs, epochs=FLAGS.epochs)
 
 
     # log training hyperparameters to TensorBoard
-    hparam_dict=vars(FLAGS)
-    hparam_dict.pop("config_file")
-    metric_dict={"ValJaccardScore": round(runner.state.val_metrics[0].avg, 4)}
-    tb_logger.writer.add_hparams(hparam_dict, metric_dict)
+    # This produces extra folder in logs. don't want this. 
+    # hparam_dict=vars(FLAGS)
+    # hparam_dict.pop("config_file")
+    # metric_dict={"ValJaccardScore": round(runner.state.val_metrics[0].avg, 4)}
+    # tb_logger.writer.add_hparams(hparam_dict, metric_dict)
 
 if __name__ == "__main__":
-    ## TODO: add info about how long did training take
     start_time = time.time()
     main()
     print(f"Finished Training. Took: {(time.time() - start_time) / 60:.02f}m")

@@ -18,6 +18,7 @@ def get_parser():
 
     # training args
     add_arg("--arch", "-a", default="se_resnet50", help="Backbone architecture")
+    add_arg("--model_params", type=eval, default={}, help="Additional model params as kwargs")
     add_arg(
         "--segm_arch",
         default="unet",
@@ -47,6 +48,13 @@ def get_parser():
     add_arg("--bs", default=16, type=int, help="Batch size")
     add_arg("--lr", default=1e-3, type=float, help="starting learning rate")
     add_arg("--outdir", default="", type=str, help="Do not pass it manually")
+    add_arg(
+        "--augmentation",
+        default="medium",
+        type=str,
+        choices=["light", "medium", "hard"],
+        help="How hard augs are"
+    )
     # inference args
     return parser
     

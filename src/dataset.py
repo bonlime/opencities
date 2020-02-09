@@ -4,6 +4,7 @@ import numpy as np
 import albumentations as albu
 from torch.utils.data import Dataset
 
+
 # TODO: put default augmentation here
 
 class OpenCitiesDataset(Dataset):

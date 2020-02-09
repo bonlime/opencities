@@ -28,7 +28,7 @@ def main():
     assert os.path.exists(FLAGS.outdir), "You have to pass config after training to inference script"
     # get model
     print("Loading model")
-    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch)#.cuda()
+    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params)#.cuda()
     sd = torch.load(os.path.join(FLAGS.outdir, "model.chpn"))["state_dict"]
     model.load_state_dict(sd)
     model = model.cuda()
