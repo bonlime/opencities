@@ -1,0 +1,15 @@
+# train config
+segm_arch: fpn_sm
+arch: se_resnet50
+model_params: {"decoder_merge_policy": "cat"}
+# model_params: {"merge_policy": "cat"}
+optim: novograd
+lr: 1e-3
+workers: 8
+wd: 1e-4
+size: 384
+bs: 32
+decoder_warmup_epochs: 30
+epochs: 100
+
+name: fpn_nov_bce_dice_seresnet50

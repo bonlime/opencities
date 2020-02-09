@@ -1,0 +1,16 @@
+# train config
+segm_arch: deeplab
+arch: se_resnet50
+# model_params: {"decoder_merge_policy": "cat"}
+# model_params: {"merge_policy": "cat"}
+model_params: {"aspp_dilation_rates": [2, 4, 6]}
+optim: fused_adam
+lr: 3e-4
+workers: 8
+wd: 1e-6
+size: 384
+bs: 32
+decoder_warmup_epochs: 20
+epochs: 100
+
+name: deeplab_small_dilation_bce_dice_seresnet50
