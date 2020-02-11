@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader
 
 import pytorch_tools as pt
 from pytorch_tools.optim import optimizer_from_name
+from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
+from pytorch_tools.fit_wrapper.callbacks import SegmCutmix
 
 from src.arg_parser import parse_args
 from src.augmentations import get_aug
@@ -76,7 +78,8 @@ def main():
         callbacks=[
             pt.fit_wrapper.callbacks.Timer(),
             pt.fit_wrapper.callbacks.ConsoleLogger(),
-            pt.fit_wrapper.callbacks.ReduceLROnPlateau(patience=10),
+            # pt.fit_wrapper.callbacks.ReduceLROnPlateau(patience=10),
+            SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
             pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
             tb_logger,
             pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn")

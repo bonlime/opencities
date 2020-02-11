@@ -17,13 +17,14 @@ from torch.utils.data import DataLoader
 from arg_parser import get_parser
 from dataset import OpenCitiesDataset, OpenCitiesTestDataset
 from utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
-
+from callbacks import ThrJaccardScore
 
 def main():
     parser = get_parser()
     parser.add_argument("--no_val", action="store_true", help="Disable validation")
     parser.add_argument("--no_test", action="store_true", help="Disable prediction on test")
     parser.add_argument("--short_predict", action="store_true", help="Predict only first 10 images")
+    parser.add_argument("--thr", default=0.5, type=float, help="Threshold for cutting")
     FLAGS = parser.parse_args()
     assert os.path.exists(FLAGS.outdir), "You have to pass config after training to inference script"
     # get model
@@ -45,9 +46,13 @@ def main():
     val_dtld = ToCudaLoader(val_dtld)
 
     if not FLAGS.no_val:
-        runner = pt.fit_wrapper.Runner(model, None, pt.losses.JaccardLoss(), pt.metrics.JaccardScore())
-        _, (jacc_score,) = runner.evaluate(val_dtld)
-        print(f"Validation Jacc Score: {jacc_score:.4f}")
+        runner = pt.fit_wrapper.Runner(
+            model, 
+            None, 
+            pt.losses.JaccardLoss(), 
+            [pt.metrics.JaccardScore(), ThrJaccardScore(thr=FLAGS.thr)])
+        _, (jacc_score, thr_jacc_score) = runner.evaluate(val_dtld)
+        print(f"Validation Jacc Score: {thr_jacc_score:.4f}")
 
     if FLAGS.no_test:
         return
@@ -72,7 +77,7 @@ def main():
         aug_img = aug_img.view(1, *aug_img.shape) # add batch dimension
         pred = pt.utils.misc.to_numpy(model(aug_img.cuda())).squeeze()
         pred = cv2.resize(pred, (1024, 1024))
-        pred = (pred > 0.5).astype(np.uint8)
+        pred = (pred > FLAGS.thr).astype(np.uint8)
         # make copy of the image with houses in red and save them both together to check that it's valid
         img2 = img.copy()
         img2[pred.astype(bool)] = [255, 0, 0]

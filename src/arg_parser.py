@@ -55,6 +55,7 @@ def get_parser():
         choices=["light", "medium", "hard"],
         help="How hard augs are"
     )
+    add_arg("--cutmix", action="store_true", help="Turns on cutmix aug on input")
     # inference args
     return parser
     
