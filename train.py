@@ -15,9 +15,8 @@ from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
 from pytorch_tools.fit_wrapper.callbacks import SegmCutmix
 
 from src.arg_parser import parse_args
-from src.augmentations import get_aug
-from src.dataset import OpenCitiesDataset
-from src.utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
+from src.dataset import get_dataloaders
+from src.utils import ToTensor, MODEL_FROM_NAME
 
 
 
@@ -29,18 +28,8 @@ def main():
     os.makedirs(FLAGS.outdir, exist_ok=True)
     yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
-    ## get augmentations 
-    train_aug = get_aug(FLAGS.augmentation, size=FLAGS.size)
-    val_aug = get_aug("val", size=FLAGS.size)
-
     ## get dataloaders
-    val_dtst = OpenCitiesDataset(split="val", transform=val_aug, buildings_only=True)
-    val_dtld = DataLoader(val_dtst, batch_size=FLAGS.bs, shuffle=False, num_workers=8)
-    val_dtld = ToCudaLoader(val_dtld)
-
-    train_dtst = OpenCitiesDataset(split="train", transform=train_aug, buildings_only=True)
-    train_dtld = DataLoader(train_dtst, batch_size=FLAGS.bs, shuffle=True, num_workers=8)
-    train_dtld = ToCudaLoader(train_dtld)
+    train_dtld, val_dtld = get_dataloaders(FLAGS)
 
     ## get model and optimizer
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()

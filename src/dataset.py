@@ -2,16 +2,48 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
+from functools import reduce
 import albumentations as albu
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
+from src.utils import ToCudaLoader
+from src.augmentations import get_aug
 
-# TODO: put default augmentation here
+def get_dataloaders(FLAGS):
+    name_to_dataset = {
+        "opencities": OpenCitiesDataset,
+        "inria": InriaTilesDataset
+    }
+
+    ## get augmentations 
+    train_aug = get_aug(FLAGS.augmentation, size=FLAGS.size)
+    val_aug = get_aug("val", size=FLAGS.size)
+
+    # get datasets
+    val_datasets = []
+    train_datasets = []
+    for name in FLAGS.datasets:
+        val_datasets.append(name_to_dataset[name](split="val", transform=val_aug))
+        train_datasets.append(name_to_dataset[name](split="train", transform=train_aug))
+    
+    # concat all datasets into one
+    val_dtst = reduce(lambda x,y: x + y, val_datasets)
+    val_dtld = DataLoader(val_dtst, batch_size=FLAGS.bs, shuffle=False, num_workers=8)
+    val_dtld = ToCudaLoader(val_dtld)
+
+    train_dtst = reduce(lambda x,y: x + y, train_datasets)
+    train_dtld = DataLoader(train_dtst, batch_size=FLAGS.bs, shuffle=True, num_workers=8)
+    train_dtld = ToCudaLoader(train_dtld)
+
+    print(f"\nUsing datasets: {FLAGS.datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
+    return train_dtld, val_dtld
+
 
 class OpenCitiesDataset(Dataset):
     def __init__(self, split='all', transform=None, imgs_path="data/images-512", masks_path="data/masks-512", buildings_only=True):
         """Args:
-            split (str): one of `val`, `train`, `all` 
+            split (str): one of `val`, `train`, `all`
             transform (albu.Compose): albumentation transformation for images
             buildings_only (bool): Flag to return only masks for building without borders and contact
         """

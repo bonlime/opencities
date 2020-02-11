@@ -56,6 +56,7 @@ def get_parser():
         help="How hard augs are"
     )
     add_arg("--cutmix", action="store_true", help="Turns on cutmix aug on input")
+    add_arg("--datasets", default="opencities", type=str, nargs="+", help="Datasets to use for training. Default is only opencities")
     # inference args
     return parser
     
