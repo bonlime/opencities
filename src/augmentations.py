@@ -12,31 +12,27 @@ def get_aug(aug_type="val", size=256):
     """aug_type (str): one of `val`, `test`, `light`, `medium`, `hard`
        size (int): final size of the crop"""
 
+    NORM_TO_TENSOR = albu.Compose([albu.Normalize(), ToTensor()])
+    CROP_AUG = albu.RandomResizedCrop(size, size, scale=(0.08, 0.3))
     VAL_AUG = albu.Compose([
         albu.CenterCrop(size, size),
-        albu.Normalize(),
-        ToTensor(),
+        NORM_TO_TENSOR,
     ])
 
-    TEST_AUG = albu.Compose([
-        albu.Normalize(),
-        ToTensor(),
-    ])
+    TEST_AUG = NORM_TO_TENSOR
 
     LIGHT_AUG = albu.Compose([
+        CROP_AUG,
         albu.Flip(),
-        albu.ShiftScaleRotate(scale_limit=0.2),
-        albu.RandomCrop(size, size),
         albu.RandomRotate90(),
-        albu.Normalize(),
-        ToTensor(),
+        NORM_TO_TENSOR,
     ])
 
     MEDIUM_AUG = albu.Compose(
-        [
+        [   
+            CROP_AUG,
             albu.Flip(),
-            albu.ShiftScaleRotate(scale_limit=0.2, rotate_limit=15, border_mode=cv2.BORDER_CONSTANT),
-            albu.RandomCrop(size, size),
+            albu.ShiftScaleRotate(), # border_mode=cv2.BORDER_CONSTANT
             # Add occasion blur/sharpening
             albu.OneOf([albu.GaussianBlur(), albu.IAASharpen(), albu.NoOp()]),
             # Spatial-preserving augmentations:
@@ -45,8 +41,7 @@ def get_aug(aug_type="val", size=256):
             albu.OneOf([albu.RandomBrightnessContrast(), albu.CLAHE(), albu.HueSaturationValue(), albu.RGBShift(), albu.RandomGamma()]),
             # Weather effects
             albu.RandomFog(fog_coef_lower=0.01, fog_coef_upper=0.3, p=0.1),
-            albu.Normalize(),
-            ToTensor(), 
+            NORM_TO_TENSOR,
         ]
     )
 

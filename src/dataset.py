@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+import pandas as pd
 import albumentations as albu
 from torch.utils.data import Dataset
 
@@ -55,3 +56,28 @@ class OpenCitiesTestDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         aug_img = self.transform(image=img)["image"]
         return img, aug_img, self.tiff_names[idx]
+
+class InriaTilesDataset(Dataset):
+
+    def __init__(self, split="all", transform=None):
+        super().__init__()
+        df = pd.read_csv("/home/zakirov/datasets/AerialImageDataset/inria_tiles.csv", index_col=0)
+        if split == "val":
+            df = df[df.train == 0]
+        elif split == "train":
+            df = df[df.train == 1]
+        self.img_ids = df["image"].values
+        self.mask_ids = df["mask"].values
+        self.transform = albu.Compose([]) if transform is None else transform
+    
+    def __len__(self):
+        return len(self.img_ids)
+    
+    def __getitem__(self, idx):
+        img = cv2.imread(self.img_ids[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        mask = cv2.imread(self.mask_ids[idx], cv2.IMREAD_GRAYSCALE)
+        mask = np.expand_dims(mask, 2)
+        augmented = self.transform(image=img, mask=mask)
+        aug_img, aug_mask = augmented['image'], augmented['mask'] / 255.
+        return aug_img, aug_mask
