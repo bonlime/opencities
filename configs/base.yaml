@@ -6,13 +6,14 @@ val_percent: 0.10
 # train config
 segm_arch: unet
 arch: resnet50
-optim: fused_adam
-lr: 3e-4
+optim: novograd
+lr: 1e-3
 workers: 8
 wd: 1e-4
 size: 256
 bs: 32
 decoder_warmup_epochs: 10
 epochs: 100
+# datasets: [opencities, inria] # will use both datasets for training and validation
 
 name: test_run

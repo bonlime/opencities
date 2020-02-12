@@ -11,12 +11,14 @@ MODEL_FROM_NAME = {
     "linknet_sm": sm.Linknet,
     "fpn_sm": sm.FPN,
     "segm_fpn": pt.segmentation_models.SegmentationFPN,
+    "segm_bifpn": pt.segmentation_models.SegmentationBiFPN,
 }
 
 # want also to transform mask
 class ToTensor(albu_pt.ToTensorV2):
     def apply_to_mask(self, mask, **params):
         return torch.from_numpy(mask.transpose(2, 0, 1))
+
 
 # loads batches to cuda. TODO: check custom collate_fn instead. it should be faster
 # or just move to DALI and forget about all this

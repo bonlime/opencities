@@ -1,8 +1,8 @@
 # train config
-segm_arch: fpn_sm
+segm_arch: segm_bifpn
 arch: se_resnet50
-model_params: {"decoder_merge_policy": "cat"}
-# model_params: {"merge_policy": "cat"}
+# model_params: {"decoder_merge_policy": "cat"}
+model_params: {"merge_policy": "cat", "num_fpn_layers": 1}
 optim: novograd
 lr: 1e-3
 workers: 8
@@ -11,5 +11,7 @@ size: 384
 bs: 32
 decoder_warmup_epochs: 30
 epochs: 100
+# datasets: [opencities, inria]
+datasets: opencities
 
-name: fpn_nov_bce_dice_seresnet50
+name: 2.segm_bifpn_nov_bce_dice_seresnet50_warmup

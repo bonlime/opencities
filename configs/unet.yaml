@@ -1,9 +1,9 @@
 # train config
-segm_arch: deeplab
+segm_arch: unet
 arch: se_resnet50
 # model_params: {"decoder_merge_policy": "cat"}
 # model_params: {"merge_policy": "cat"}
-model_params: {"aspp_dilation_rates": [2, 4, 6]}
+# model_params: {"aspp_dilation_rates": [2, 4, 6]}
 optim: novograd
 lr: 1e-3
 workers: 8
@@ -12,7 +12,6 @@ size: 384
 bs: 32
 decoder_warmup_epochs: 0
 epochs: 100
-# cutmix: True
+cutmix: True
 
-
-name: 2.deeplab_nov
+name: unet_nov_cutmix

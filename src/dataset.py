@@ -11,6 +11,9 @@ from src.utils import ToCudaLoader
 from src.augmentations import get_aug
 
 def get_dataloaders(FLAGS):
+    """Returns:
+    train_dataloader, val_dataloader
+    """
     name_to_dataset = {
         "opencities": OpenCitiesDataset,
         "inria": InriaTilesDataset
