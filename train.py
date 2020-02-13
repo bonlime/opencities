@@ -17,6 +17,7 @@ from pytorch_tools.fit_wrapper.callbacks import SegmCutmix
 from src.arg_parser import parse_args
 from src.dataset import get_dataloaders
 from src.utils import ToTensor, MODEL_FROM_NAME
+from src.callbacks import ThrJaccardScore
 
 
 
@@ -55,7 +56,8 @@ def main():
     jacc_loss = pt.losses.JaccardLoss(mode="binary").cuda()
     bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda()
     bce_loss.name = "BCE"
-    loss = 0.5 * bce_loss + 0.5 * jacc_loss
+    # loss = 0.5 * bce_loss + 0.5 * jacc_loss
+    loss = pt.losses.BinaryHinge()
     # loss = jacc_loss
 
     ## get runner
@@ -74,8 +76,9 @@ def main():
             pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn")
         ],
         metrics=[
-            pt.metrics.JaccardScore(mode="binary").cuda(),
             bce_loss,
+            pt.metrics.JaccardScore(mode="binary").cuda(),
+            ThrJaccardScore(thr=0.5),
         ]
     )
 

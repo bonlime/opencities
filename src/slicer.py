@@ -4,9 +4,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from pprint import pprint
-import solaris as sol
 from pathlib import Path
 import rasterio
+from rasterio import features as rast_features
 from rasterio.windows import Window
 import geopandas as gpd
 from pystac import (Catalog, CatalogType, Item, Asset, LabelItem, Collection)
@@ -24,8 +24,11 @@ import time
 import warnings
 import configargparse as argparse
 
-# local import 
-from arg_parser import parse_args
+# local import. very dirty but works
+if __name__ == "__main__":
+    from arg_parser import get_parser
+else:
+    from src.arg_parser import get_parser
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
@@ -119,13 +122,10 @@ def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path='', prefix=
     cropped_polys = [poly for poly in labels_poly if poly.intersects(tile_poly)]
     cropped_polys_gdf = gpd.GeoDataFrame(geometry=cropped_polys, crs=4326)
     # TODO: do manually because I don't like their definition of contact
-    fbc_mask = sol.vector.mask.df_to_px_mask(
-        df=cropped_polys_gdf,
-        channels=['footprint', 'boundary', 'contact'],
-        affine_obj=tfm, shape=(tile_size,tile_size),
-        boundary_width=5, boundary_type='inner', contact_spacing=5, meters=True
-    )
-    skimage.io.imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',fbc_mask, check_contrast=False) 
+    df = cropped_polys_gdf
+    feature_list = list(zip(df["geometry"], [255]*len(df)))
+    mask = rast_features.rasterize(shapes=feature_list, out_shape=(TILE_SIZE,TILE_SIZE), transform=tfm)
+    skimage.io.imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',mask, check_contrast=False) 
 
 def pool_wrapper(idx_tile):
     idx, tile = idx_tile
@@ -136,8 +136,10 @@ def pool_wrapper(idx_tile):
 
 if __name__ == "__main__":
     start_time = time.time()
-    args = parse_args()
-    DATA_ROOT_PATH = "/home/zakirov/datasets/opencities/train_tier_1/"
+    parser = get_parser()
+    parser.add_argument("-dd", type=str, help="Path to tier 1 data")
+    args = parser.parse_args()
+    DATA_ROOT_PATH = args.dd
     train1_cat = Catalog.from_file(DATA_ROOT_PATH + 'catalog.json')
     cols = {cols.id:cols for cols in train1_cat.get_children()}
     ZOOM_LEVEL=args.zoom_level
