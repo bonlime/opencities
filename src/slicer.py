@@ -13,8 +13,9 @@ from pystac import (Catalog, CatalogType, Item, Asset, LabelItem, Collection)
 from rasterio.transform import from_bounds
 from shapely.geometry import Polygon
 from shapely.ops import cascaded_union
+import rio_tiler
 from rio_tiler import main as rt_main
-import skimage
+from skimage.io import imsave
 from tqdm import tqdm
 import os
 import subprocess
@@ -117,7 +118,7 @@ def cleanup_invalid_geoms(all_polys):
 def save_tile_img(tif_path, xyz, tile_size, save_path='', prefix='', display=False):
     x,y,z = xyz
     tile, mask = rt_main.tile(tif_path, x,y,z, tilesize=tile_size)
-    skimage.io.imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',np.moveaxis(tile,0,2), check_contrast=False)
+    imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',np.moveaxis(tile,0,2), check_contrast=False)
 
 
 def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path='', prefix='', display=False):
@@ -129,15 +130,21 @@ def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path='', prefix=
     # TODO: do manually because I don't like their definition of contact
     df = cropped_polys_gdf
     feature_list = list(zip(df["geometry"], [255]*len(df)))
-    mask = rast_features.rasterize(shapes=feature_list, out_shape=(TILE_SIZE,TILE_SIZE), transform=tfm)
-    skimage.io.imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',mask, check_contrast=False) 
+    if len(feature_list) == 0: # if no buildings return zero mask
+        mask = np.zeros((tile_size, tile_size), np.uint8)
+    else:
+        mask = rast_features.rasterize(shapes=feature_list, out_shape=(TILE_SIZE,TILE_SIZE), transform=tfm)
+    imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',mask, check_contrast=False) 
 
 def pool_wrapper(idx_tile):
     idx, tile = idx_tile
     dataset = tile['dataset']
     tile_poly = tile['geometry']
-    save_tile_img(tiff_path, tile['xyz'], TILE_SIZE, save_path=IMGS_PATH, prefix=f'{area_name}_{name}_{dataset}_')
-    save_tile_mask(all_polys, tile_poly, tile['xyz'], TILE_SIZE, save_path=MASKS_PATH,prefix=f'{area_name}_{name}_{dataset}_')
+    try:
+        save_tile_img(tiff_path, tile['xyz'], TILE_SIZE, save_path=IMGS_PATH, prefix=f'{area_name}_{name}_{dataset}_')
+        save_tile_mask(all_polys, tile_poly, tile['xyz'], TILE_SIZE, save_path=MASKS_PATH,prefix=f'{area_name}_{name}_{dataset}_')
+    except rio_tiler.errors.TileOutsideBounds:
+        pass # some tiles are outside of image bounds we need to catch this errors 
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -172,7 +179,7 @@ if __name__ == "__main__":
             labels_gdf = gpd.read_file(geojson_path)
             # get tiles
             tiles_gdf = geojson_to_squares(
-                geojson_path, 
+                tiff_path[:-3] + "json", # pass full tiff geo for square slicer
                 zoom_level=args.zoom_level, 
                 val_percent=args.val_percent, 
                 outfile="/tmp/tiles.geojson",
