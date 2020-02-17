@@ -14,10 +14,10 @@ import albumentations as albu
 from torch.utils.data import DataLoader
 
 # local imports
-from arg_parser import get_parser
-from dataset import OpenCitiesDataset, OpenCitiesTestDataset
-from utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
-from callbacks import ThrJaccardScore
+from src.arg_parser import get_parser
+from src.dataset import OpenCitiesDataset, OpenCitiesTestDataset
+from src.utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
+from src.callbacks import ThrJaccardScore
 
 def main():
     parser = get_parser()
