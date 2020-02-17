@@ -32,7 +32,7 @@ else:
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
-def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.15):
+def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.15, val_by_y=False):
     """Turn Geojson with buildings annotations to non overlapping squares at `zoom_level`
     supermercado could only be run from comand line, so I'm using chaining of runs to simulate one long
     command
@@ -57,8 +57,13 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     tiles_df["xyz"] = tiles_df.id.apply(lambda x: list(eval(x)))
     # perform validation split
     assert 0 < val_percent < 1
-    split_y = np.percentile(tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100) # lowest 15% by y coordinate
-    tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
+    if val_by_y:
+        split_y = np.percentile(tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100) # lowest 15% by y coordinate
+        tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
+    else:
+        tiles_df["dataset"] = np.random.rand(len(tiles_df)) > val_percent
+        tiles_df["dataset"] = tiles_df["dataset"].map(lambda x: "train" if x else "val")
+
     return tiles_df
 
 
@@ -148,12 +153,12 @@ if __name__ == "__main__":
     # prepare data folders
     data_dir = Path('data')
     data_dir.mkdir(exist_ok=True)
-    IMGS_PATH = data_dir/f'images-{TILE_SIZE}'
-    MASKS_PATH = data_dir/f'masks-{TILE_SIZE}'
+    IMGS_PATH = data_dir/f'images-{args.tile_size}'
+    MASKS_PATH = data_dir/f'masks-{args.tile_size}'
     IMGS_PATH.mkdir(exist_ok=True)
     MASKS_PATH.mkdir(exist_ok=True)
     # iterate over different areas
-    print(f"Slicing images with zoom level={ZOOM_LEVEL}, tile size={TILE_SIZE} and {VAL_PERCENT} val split")
+    print(f"Slicing images with zoom level={args.zoom_level}, tile size={args.tile_size} and {args.val_percent} val split")
     for area_name, area_data in cols.items():
         print(f"\nProcessing area: {area_name}")
         area_labels = [i for i in area_data.get_all_items() if 'label' in i.id]
@@ -166,7 +171,12 @@ if __name__ == "__main__":
             print(f"\tProcessing id: {name}")
             labels_gdf = gpd.read_file(geojson_path)
             # get tiles
-            tiles_gdf = geojson_to_squares(geojson_path, zoom_level=ZOOM_LEVEL, val_percent=VAL_PERCENT, outfile="/tmp/tiles.geojson")
+            tiles_gdf = geojson_to_squares(
+                geojson_path, 
+                zoom_level=args.zoom_level, 
+                val_percent=args.val_percent, 
+                outfile="/tmp/tiles.geojson",
+                val_by_y=args.val_by_y)
             # get not overlappping polygons
             all_polys = cleanup_invalid_geoms(labels_gdf.geometry)
             # use multiprocessing to speedup chips generation
