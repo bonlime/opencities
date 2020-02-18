@@ -1,6 +1,7 @@
 # This project gitignore
 data/
 logs/
+wandb/
 *.zip
 
 # Byte-compiled / optimized / DLL files

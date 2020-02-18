@@ -1,6 +1,7 @@
 import os
 import yaml
 import time
+import wandb
 import numpy as np
 import albumentations as albu
 import albumentations.pytorch as albu_pt
@@ -16,18 +17,23 @@ from pytorch_tools.fit_wrapper.callbacks import SegmCutmix
 
 from src.arg_parser import parse_args
 from src.dataset import get_dataloaders
-from src.utils import ToTensor, MODEL_FROM_NAME
+from src.utils import ToTensor
+from src.utils import MODEL_FROM_NAME
+from src.utils import criterion_from_list
 from src.callbacks import ThrJaccardScore
+from src.callbacks import PredictViewer
 
 
 
 def main():
     FLAGS = parse_args()
-    print(FLAGS)
+    wandb.init(project="opencities", name=FLAGS.name, sync_tensorboard=True)
+    wandb.config.update(FLAGS)
+    FLAGS.outdir = wandb.run.dir
     pt.utils.misc.set_random_seed(42) # fix all seeds
     ## dump config
-    os.makedirs(FLAGS.outdir, exist_ok=True)
-    yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
+    # os.makedirs(FLAGS.outdir, exist_ok=True)
+    # yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
     ## get dataloaders
     train_dtld, val_dtld = get_dataloaders(FLAGS)
@@ -52,16 +58,13 @@ def main():
     ## train on fp16 by default
     model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=2048)
     
-    ## get loss. fixed for now. TODO: add loss combinations
-    jacc_loss = pt.losses.JaccardLoss(mode="binary").cuda()
+    ## get loss. fixed for now.
     bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda()
     bce_loss.name = "BCE"
-    # loss = 0.5 * bce_loss + 0.5 * jacc_loss
-    loss = pt.losses.BinaryHinge()
-    # loss = jacc_loss
-
+    loss = criterion_from_list(FLAGS.criterion).cuda()
+    print("Loss for this run is: ", loss)
     ## get runner
-    tb_logger = pt.fit_wrapper.callbacks.TensorBoard(FLAGS.outdir)
+    tb_logger = PredictViewer(FLAGS.outdir)
     runner = pt.fit_wrapper.Runner(
         model,
         optimizer,
@@ -71,7 +74,7 @@ def main():
             pt.fit_wrapper.callbacks.ConsoleLogger(),
             # pt.fit_wrapper.callbacks.ReduceLROnPlateau(patience=10),
             SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
-            pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
+            # pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
             tb_logger,
             pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn")
         ],
@@ -86,13 +89,26 @@ def main():
         ## freeze encoder
         for p in model.encoder.parameters():
             p.requires_grad = False
-        runner.fit(train_dtld, val_loader=val_dtld, epochs=FLAGS.decoder_warmup_epochs)
+        runner.fit(
+            train_dtld, 
+            val_loader=val_dtld, 
+            epochs=FLAGS.decoder_warmup_epochs,
+            steps_per_epoch=50 if FLAGS.short_epoch else None,
+            val_steps=50 if FLAGS.short_epoch else None,
+        )
     
         ## unfreeze all
         for p in model.parameters():
             p.requires_grad = True
             
-    runner.fit(train_dtld, val_loader=val_dtld, start_epoch=FLAGS.decoder_warmup_epochs, epochs=FLAGS.epochs)
+    runner.fit(
+        train_dtld, 
+        val_loader=val_dtld, 
+        start_epoch=FLAGS.decoder_warmup_epochs, 
+        epochs=FLAGS.epochs,
+        steps_per_epoch=50 if FLAGS.short_epoch else None,
+        val_steps=50 if FLAGS.short_epoch else None,
+    )
 
 
     # log training hyperparameters to TensorBoard

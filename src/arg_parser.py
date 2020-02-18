@@ -58,6 +58,14 @@ def get_parser():
     )
     add_arg("--cutmix", action="store_true", help="Turns on cutmix aug on input")
     add_arg("--datasets", default=["opencities"], type=str, nargs="+", help="Datasets to use for training. Default is only opencities")
+    add_arg("--short_epoch", action="store_true", help="Flag to enable debug mod and make very short epochs")
+    add_arg(
+        "--criterion",
+        type=str,
+        required=True,
+        nargs="+",
+        help="List of criterions to use. Should be like `bce 0.5 dice 0.5`"
+    )
     # inference args
     return parser
     
@@ -68,6 +76,6 @@ def parse_args():
     # add timestamp to name and create this run folder
     assert args.outdir == "", "Do not pass `outdir` param manually"
     timestamp = get_timestamp()
-    args.name = args.name + "_" + timestamp if args.name else timestamp
-    args.outdir = os.path.join("logs/", args.name)
+    name = args.name + "_" + timestamp if args.name else timestamp
+    args.outdir = os.path.join("logs/", name)
     return args

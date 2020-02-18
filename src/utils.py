@@ -1,7 +1,8 @@
 import torch
+from functools import reduce
 import albumentations.pytorch as albu_pt
-import pytorch_tools as pt
 import segmentation_models_pytorch as sm
+import pytorch_tools as pt
 
 MODEL_FROM_NAME = {
     "unet": pt.segmentation_models.Unet,
@@ -13,6 +14,19 @@ MODEL_FROM_NAME = {
     "segm_fpn": pt.segmentation_models.SegmentationFPN,
     "segm_bifpn": pt.segmentation_models.SegmentationBiFPN,
 }
+
+LOSS_FROM_NAME = {
+    "bce": pt.losses.CrossEntropyLoss(mode="binary"),
+    "dice": pt.losses.DiceLoss(mode="binary"),
+    "jaccard": pt.losses.JaccardLoss(mode="binary"),
+    "hinge": pt.losses.BinaryHinge(),
+    "focal": pt.losses.BinaryFocalLoss(),
+}
+
+def criterion_from_list(crit_list):
+    """expects something like `bce 0.5 dice 0.5` to construct loss"""
+    losses = [ LOSS_FROM_NAME[l] * float(w) for l, w in zip(crit_list[::2], crit_list[1::2])]
+    return reduce(lambda x, y: x + y, losses)
 
 # want also to transform mask
 class ToTensor(albu_pt.ToTensorV2):

@@ -14,6 +14,7 @@ size: 256
 bs: 32
 decoder_warmup_epochs: 10
 epochs: 100
+criterion: [bce, 0.5,  dice,  0.5]
 # datasets: [opencities, inria] # will use both datasets for training and validation
 
 name: test_run
