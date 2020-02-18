@@ -28,6 +28,7 @@ class PredictViewer(pt.fit_wrapper.callbacks.TensorBoard):
         super().on_batch_end()
         # save first val batch
         if not self.has_saved and not self.state.is_train:
+            print(self.state.input)
             self.img_batch = self.state.input[0].detach()[:9] # only take first 9 images
             self.has_saved = True
     

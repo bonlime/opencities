@@ -1,7 +1,7 @@
 import os
 import yaml
 import time
-import wandb
+# import wandb
 import numpy as np
 import albumentations as albu
 import albumentations.pytorch as albu_pt
@@ -27,18 +27,17 @@ from src.callbacks import PredictViewer
 
 def main():
     FLAGS = parse_args()
-    wandb.init(project="opencities", name=FLAGS.name, sync_tensorboard=True)
-    wandb.config.update(FLAGS)
-    FLAGS.outdir = wandb.run.dir
-    pt.utils.misc.set_random_seed(42) # fix all seeds
-    ## dump config
-    # os.makedirs(FLAGS.outdir, exist_ok=True)
-    # yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
-    ## get dataloaders
-    train_dtld, val_dtld = get_dataloaders(FLAGS)
+    pt.utils.misc.set_random_seed(123) # fix all seeds
 
-    ## get model and optimizer
+    ## Save config file
+    os.makedirs(FLAGS.outdir, exist_ok=True)
+    yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
+
+    ## Get dataloaders
+    train_loader, val_loader = get_dataloaders(FLAGS)
+
+    ## Get model and optimizer
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
     optimizer = optimizer_from_name(FLAGS.optim)(
         model.parameters(), lr=FLAGS.lr, weight_decay=FLAGS.weight_decay, # **FLAGS.optim_params TODO: add additional optim params if needed
@@ -90,8 +89,8 @@ def main():
         for p in model.encoder.parameters():
             p.requires_grad = False
         runner.fit(
-            train_dtld, 
-            val_loader=val_dtld, 
+            train_loader, 
+            val_loader=val_loader, 
             epochs=FLAGS.decoder_warmup_epochs,
             steps_per_epoch=50 if FLAGS.short_epoch else None,
             val_steps=50 if FLAGS.short_epoch else None,
@@ -102,8 +101,8 @@ def main():
             p.requires_grad = True
             
     runner.fit(
-        train_dtld, 
-        val_loader=val_dtld, 
+        train_loader, 
+        val_loader=val_loader, 
         start_epoch=FLAGS.decoder_warmup_epochs, 
         epochs=FLAGS.epochs,
         steps_per_epoch=50 if FLAGS.short_epoch else None,
@@ -122,3 +121,4 @@ if __name__ == "__main__":
     start_time = time.time()
     main()
     print(f"Finished Training. Took: {(time.time() - start_time) / 60:.02f}m")
+    
