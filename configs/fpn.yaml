@@ -14,5 +14,5 @@ epochs: 100
 # datasets: [opencities, inria]
 datasets: opencities
 
-name: 3.segm_fpn_nov_hinge_seresnet50_warmup_res
-resume: logs/3.segm_fpn_nov_hinge_seresnet50_warmup_20200213_160637/model.chpn
+name: 4.segm_fpn_nov_bce_dice_seresnet50_warmup
+# resume: logs/3.segm_fpn_nov_hinge_seresnet50_warmup_20200213_160637/model.chpn
