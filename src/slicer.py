@@ -1,35 +1,39 @@
 """Utils for slicing tiff image into windows"""
-# Many import are not used
-from matplotlib import pyplot as plt
+import os
+import time
+import warnings
+import subprocess
+from functools import partial
+from multiprocessing import Pool
+
 import numpy as np
-import pandas as pd
-from pprint import pprint
-from pathlib import Path
-import rasterio
-from rasterio import features as rast_features
-from rasterio.windows import Window
+from tqdm import tqdm
 import geopandas as gpd
-from pystac import (Catalog, CatalogType, Item, Asset, LabelItem, Collection)
-from rasterio.transform import from_bounds
-from shapely.geometry import Polygon
+from pathlib import Path
+from skimage.io import imsave
+import configargparse as argparse
 from shapely.ops import cascaded_union
 import rio_tiler
 from rio_tiler import main as rt_main
-from skimage.io import imsave
-from tqdm import tqdm
-import os
-import subprocess
-from multiprocessing import Pool
-from functools import partial
-import time
-import warnings
-import configargparse as argparse
+from rasterio.transform import from_bounds
+from rasterio import features as rast_features
+from pystac import (Catalog, CatalogType, Item, Asset, LabelItem, Collection)
 
-# local import. very dirty but works
+# from matplotlib import pyplot as plt
+# import pandas as pd
+# from pprint import pprint
+
+# import rasterio
+# from rasterio.windows import Window
+# from shapely.geometry import Polygon
+
+
+## Fix issue with local imports
 if __name__ == "__main__":
-    from arg_parser import get_parser
+    from arg_parser import parse_args
 else:
-    from src.arg_parser import get_parser
+    from src.arg_parser import parse_args
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
@@ -46,8 +50,8 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     Returns:
         GeoPandas DF with tiles
     """
+
     outfile = outfile or f"z{zoom_level}tiles.geojson"
-    # if not os.path.exists(outfile):
     kwargs = {"universal_newlines":True, "stdout": subprocess.PIPE}
     ps1 = subprocess.run(["cat", geojson_path], **kwargs)
     ps2 = subprocess.run(["supermercado", "burn", f"{zoom_level}"], input=ps1.stdout, **kwargs)
@@ -133,7 +137,7 @@ def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path='', prefix=
     if len(feature_list) == 0: # if no buildings return zero mask
         mask = np.zeros((tile_size, tile_size), np.uint8)
     else:
-        mask = rast_features.rasterize(shapes=feature_list, out_shape=(TILE_SIZE,TILE_SIZE), transform=tfm)
+        mask = rast_features.rasterize(shapes=feature_list, out_shape=(args.tile_size, args.tile_size), transform=tfm)
     imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',mask, check_contrast=False) 
 
 def pool_wrapper(idx_tile):
@@ -141,30 +145,39 @@ def pool_wrapper(idx_tile):
     dataset = tile['dataset']
     tile_poly = tile['geometry']
     try:
-        save_tile_img(tiff_path, tile['xyz'], TILE_SIZE, save_path=IMGS_PATH, prefix=f'{area_name}_{name}_{dataset}_')
-        save_tile_mask(all_polys, tile_poly, tile['xyz'], TILE_SIZE, save_path=MASKS_PATH,prefix=f'{area_name}_{name}_{dataset}_')
+        save_tile_img(
+            tiff_path, 
+            tile['xyz'], 
+            args.tile_size, 
+            save_path=f'data/images-{args.tile_size}', 
+            prefix=f'{area_name}_{name}_{dataset}_')
+
+        save_tile_mask(
+            all_polys, 
+            tile_poly, 
+            tile['xyz'], 
+            args.tile_size, 
+            save_path=f'data/masks-{args.tile_size}',
+            prefix=f'{area_name}_{name}_{dataset}_')
+
     except rio_tiler.errors.TileOutsideBounds:
+        print("TileOutsideBounds error")
         pass # some tiles are outside of image bounds we need to catch this errors 
 
 if __name__ == "__main__":
+
     start_time = time.time()
-    parser = get_parser()
-    parser.add_argument("-dd", type=str, help="Path to tier 1 data")
-    args = parser.parse_args()
-    DATA_ROOT_PATH = args.dd
-    train1_cat = Catalog.from_file(DATA_ROOT_PATH + 'catalog.json')
-    cols = {cols.id:cols for cols in train1_cat.get_children()}
-    ZOOM_LEVEL=args.zoom_level
-    TILE_SIZE=args.tile_size
-    VAL_PERCENT=args.val_percent
-    # prepare data folders
-    data_dir = Path('data')
-    data_dir.mkdir(exist_ok=True)
-    IMGS_PATH = data_dir/f'images-{args.tile_size}'
-    MASKS_PATH = data_dir/f'masks-{args.tile_size}'
-    IMGS_PATH.mkdir(exist_ok=True)
-    MASKS_PATH.mkdir(exist_ok=True)
-    # iterate over different areas
+    args = parse_args()
+    
+    # train1_cat = Catalog.from_file(args.data_path + 'catalog.json')
+    cols = {cols.id:cols for cols in Catalog.from_file(args.data_path + 'catalog.json').get_children()}
+
+    ## Prepare data folders
+    Path('data').mkdir(exist_ok=True)
+    Path(f'data/images-{args.tile_size}').mkdir(exist_ok=True)
+    Path(f'data/masks-{args.tile_size}').mkdir(exist_ok=True)
+
+    # Iterate over different areas
     print(f"Slicing images with zoom level={args.zoom_level}, tile size={args.tile_size} and {args.val_percent} val split")
     for area_name, area_data in cols.items():
         print(f"\nProcessing area: {area_name}")
@@ -177,13 +190,15 @@ if __name__ == "__main__":
         for name, geojson_path, tiff_path in zip(area_id_names, area_labels_jsons, area_images_tiffs):
             print(f"\tProcessing id: {name}")
             labels_gdf = gpd.read_file(geojson_path)
-            # get tiles
+
+            # Get tiles
             tiles_gdf = geojson_to_squares(
                 tiff_path[:-3] + "json", # pass full tiff geo for square slicer
                 zoom_level=args.zoom_level, 
                 val_percent=args.val_percent, 
                 outfile="/tmp/tiles.geojson",
                 val_by_y=args.val_by_y)
+                
             # get not overlappping polygons
             all_polys = cleanup_invalid_geoms(labels_gdf.geometry)
             # use multiprocessing to speedup chips generation

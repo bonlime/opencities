@@ -11,7 +11,8 @@ def get_parser():
     )
     add_arg = parser.add_argument
 
-    # slicer args
+    # TIFF slicer parameters
+    add_arg("--data_path", type=str, help="Path to raw tier 1/2 data")
     add_arg("--zoom_level", default=19, type=int, help="Zoom level for tile slicing")
     add_arg("--tile_size", default=512, type=int, help="Size of tile chip in pixels")
     add_arg("--val_percent", default=0.15, type=float, help="How many tiles to leave for validation")
@@ -58,15 +59,15 @@ def get_parser():
     )
     add_arg("--cutmix", action="store_true", help="Turns on cutmix aug on input")
     add_arg("--datasets", default=["opencities"], type=str, nargs="+", help="Datasets to use for training. Default is only opencities")
+    # inference args
     add_arg("--short_epoch", action="store_true", help="Flag to enable debug mod and make very short epochs")
     add_arg(
-        "--criterion",
-        type=str,
-        required=True,
-        nargs="+",
-        help="List of criterions to use. Should be like `bce 0.5 dice 0.5`"
+         "--criterion",
+         type=str,
+         required=True,
+         nargs="+",
+         help="List of criterions to use. Should be like `bce 0.5 dice 0.5`"
     )
-    # inference args
     return parser
     
      

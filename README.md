@@ -7,3 +7,15 @@
 * `python3 src/slicer.py -c configs/my_config.yaml` - нарежет патчи для тренировки и раздели их на трейн и валидацию  
 * `python3 train.py -c configs/my_config.yaml` - обучит модельку и сохранит её куда-то в логи  
 * `python3 train.py -c logs/{name of your run}/config.yaml` - запустит инференс на папке с обученной моделью  
+
+Work plan:
+
++ Write data loading script
+* Crop Tier 1 data into patches
+    Validate, that masks and results are the same
+* Check model training 
+    Launch simple model training in notebook
+* Check script training (launch short training using script)
+* Create Unet baseline, with efficient net encoder. 
+
+Change loss functions according to ideas from Kaggle
