@@ -13,6 +13,7 @@ from pathlib import Path
 from skimage.io import imsave
 import configargparse as argparse
 from shapely.ops import cascaded_union
+from scipy.ndimage.morphology import distance_transform_edt
 import rio_tiler
 from rio_tiler import main as rt_main
 from rasterio.transform import from_bounds
@@ -113,13 +114,24 @@ def cleanup_invalid_geoms(all_polys):
     return all_polys
 
 
-def save_tile_img(tif_path, xyz, tile_size, save_path="", prefix="", display=False):
+def save_tile_img(tif_path, xyz, tile_size, save_path="", prefix=""):
     x, y, z = xyz
     tile, mask = rt_main.tile(tif_path, x, y, z, tilesize=tile_size)
     imsave(f"{save_path}/{prefix}{z}_{x}_{y}.png", np.moveaxis(tile, 0, 2), check_contrast=False)
 
+def get_signed_distance_transform(mask, border=10):
+    """turns mask in to SDT"""
+    if mask.max() == 0:
+        return np.zeros_like(mask, dtype=np.uint8)
+    if mask.max() == 1:
+        mask *= 255 # need mask in [0, 255]
+    pos = np.clip(distance_transform_edt(mask), 0, border) / border
+    neg = np.clip(distance_transform_edt(255 - mask), 0, border) / border
+    res =  pos - neg # in [-1, 1]
+    res = ((res + 1) * 127.5).astype(np.uint8) # in [0, 255]
+    return res
 
-def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path="", prefix="", display=False):
+def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path="", prefix="", border_thickness=20):
     x, y, z = xyz
     tfm = from_bounds(*tile_poly.bounds, tile_size, tile_size)
     # get poly inside the tile
@@ -134,7 +146,9 @@ def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path="", prefix=
         mask = rast_features.rasterize(
             shapes=feature_list, out_shape=(args.tile_size, args.tile_size), transform=tfm
         )
-    imsave(f"{save_path}/{prefix}{z}_{x}_{y}.png", mask, check_contrast=False)
+    dist = get_signed_distance_transform(mask, border_thickness)
+    im = np.stack([mask, dist, dist], axis=2)
+    imsave(f"{save_path}/{prefix}{z}_{x}_{y}.png", im, check_contrast=False)
 
 
 def pool_wrapper(idx_tile):

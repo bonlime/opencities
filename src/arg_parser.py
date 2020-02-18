@@ -13,11 +13,12 @@ def get_parser():
     add_arg = parser.add_argument
 
     # TIFF slicer parameters
-    add_arg("--data_path", type=str, help="Path to raw tier 1/2 data")
+    add_arg("-dd", "--data_path", type=str, help="Path to raw tier 1/2 data")
     add_arg("--zoom_level", default=19, type=int, help="Zoom level for tile slicing")
     add_arg("--tile_size", default=512, type=int, help="Size of tile chip in pixels")
     add_arg("--val_percent", default=0.15, type=float, help="How many tiles to leave for validation")
     add_arg("--val_by_y", action="store_true", help="Method to generate validation set")
+    add_arg("--border_thickness", default=20, type=int, help="Border for distance transform")
 
     # training args
     add_arg("--arch", "-a", default="se_resnet50", help="Backbone architecture")
