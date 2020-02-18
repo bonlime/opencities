@@ -24,13 +24,12 @@ from src.callbacks import ThrJaccardScore
 from src.callbacks import PredictViewer
 
 
-
 def main():
     FLAGS = parse_args()
     wandb.init(project="opencities", name=FLAGS.name, sync_tensorboard=True)
     wandb.config.update(FLAGS)
     FLAGS.outdir = wandb.run.dir
-    pt.utils.misc.set_random_seed(42) # fix all seeds
+    pt.utils.misc.set_random_seed(42)  # fix all seeds
     ## dump config
     # os.makedirs(FLAGS.outdir, exist_ok=True)
     # yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
@@ -41,7 +40,9 @@ def main():
     ## get model and optimizer
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
     optimizer = optimizer_from_name(FLAGS.optim)(
-        model.parameters(), lr=FLAGS.lr, weight_decay=FLAGS.weight_decay, # **FLAGS.optim_params TODO: add additional optim params if needed
+        model.parameters(),
+        lr=FLAGS.lr,
+        weight_decay=FLAGS.weight_decay,  # **FLAGS.optim_params TODO: add additional optim params if needed
     )
     if FLAGS.resume:
         checkpoint = torch.load(FLAGS.resume, map_location=lambda storage, loc: storage.cuda())
@@ -57,7 +58,7 @@ def main():
     ## TODO: add lookahead
     ## train on fp16 by default
     model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=2048)
-    
+
     ## get loss. fixed for now.
     bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda()
     bce_loss.name = "BCE"
@@ -76,13 +77,9 @@ def main():
             SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
             # pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
             tb_logger,
-            pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn")
+            pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn"),
         ],
-        metrics=[
-            bce_loss,
-            pt.metrics.JaccardScore(mode="binary").cuda(),
-            ThrJaccardScore(thr=0.5),
-        ]
+        metrics=[bce_loss, pt.metrics.JaccardScore(mode="binary").cuda(), ThrJaccardScore(thr=0.5),],
     )
 
     if FLAGS.decoder_warmup_epochs > 0:
@@ -90,33 +87,33 @@ def main():
         for p in model.encoder.parameters():
             p.requires_grad = False
         runner.fit(
-            train_dtld, 
-            val_loader=val_dtld, 
+            train_dtld,
+            val_loader=val_dtld,
             epochs=FLAGS.decoder_warmup_epochs,
             steps_per_epoch=50 if FLAGS.short_epoch else None,
             val_steps=50 if FLAGS.short_epoch else None,
         )
-    
+
         ## unfreeze all
         for p in model.parameters():
             p.requires_grad = True
-            
+
     runner.fit(
-        train_dtld, 
-        val_loader=val_dtld, 
-        start_epoch=FLAGS.decoder_warmup_epochs, 
+        train_dtld,
+        val_loader=val_dtld,
+        start_epoch=FLAGS.decoder_warmup_epochs,
         epochs=FLAGS.epochs,
         steps_per_epoch=50 if FLAGS.short_epoch else None,
         val_steps=50 if FLAGS.short_epoch else None,
     )
 
-
     # log training hyperparameters to TensorBoard
-    # This produces extra folder in logs. don't want this. 
+    # This produces extra folder in logs. don't want this.
     # hparam_dict=vars(FLAGS)
     # hparam_dict.pop("config_file")
     # metric_dict={"ValJaccardScore": round(runner.state.val_metrics[0].avg, 4)}
     # tb_logger.writer.add_hparams(hparam_dict, metric_dict)
+
 
 if __name__ == "__main__":
     start_time = time.time()

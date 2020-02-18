@@ -13,12 +13,14 @@ from tqdm import tqdm
 
 TRAIN_LOCATIONS = ["austin", "chicago", "kitsap", "tyrol-w", "vienna"]
 
+
 def read_inria_mask(fname):
     mask = fs.read_image_as_is(fname)
     if mask is None:
         raise IOError("Cannot read " + fname)
     cv2.threshold(mask, thresh=0, maxval=1, type=cv2.THRESH_BINARY, dst=mask)
     return mask
+
 
 def split_image(image_fname, output_dir, tile_size, tile_step, image_margin):
     os.makedirs(output_dir, exist_ok=True)

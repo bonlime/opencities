@@ -23,10 +23,12 @@ LOSS_FROM_NAME = {
     "focal": pt.losses.BinaryFocalLoss(),
 }
 
+
 def criterion_from_list(crit_list):
     """expects something like `bce 0.5 dice 0.5` to construct loss"""
-    losses = [ LOSS_FROM_NAME[l] * float(w) for l, w in zip(crit_list[::2], crit_list[1::2])]
+    losses = [LOSS_FROM_NAME[l] * float(w) for l, w in zip(crit_list[::2], crit_list[1::2])]
     return reduce(lambda x, y: x + y, losses)
+
 
 # want also to transform mask
 class ToTensor(albu_pt.ToTensorV2):
@@ -39,9 +41,9 @@ class ToTensor(albu_pt.ToTensorV2):
 class ToCudaLoader:
     def __init__(self, loader):
         self.loader = loader
-        
+
     def __iter__(self):
         return ((i.cuda() for i in batch) for batch in self.loader)
-    
+
     def __len__(self):
         return len(self.loader)

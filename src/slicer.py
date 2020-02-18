@@ -17,16 +17,7 @@ import rio_tiler
 from rio_tiler import main as rt_main
 from rasterio.transform import from_bounds
 from rasterio import features as rast_features
-from pystac import (Catalog, CatalogType, Item, Asset, LabelItem, Collection)
-
-# from matplotlib import pyplot as plt
-# import pandas as pd
-# from pprint import pprint
-
-# import rasterio
-# from rasterio.windows import Window
-# from shapely.geometry import Polygon
-
+from pystac import Catalog, CatalogType, Item, Asset, LabelItem, Collection
 
 ## Fix issue with local imports
 if __name__ == "__main__":
@@ -52,7 +43,7 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     """
 
     outfile = outfile or f"z{zoom_level}tiles.geojson"
-    kwargs = {"universal_newlines":True, "stdout": subprocess.PIPE}
+    kwargs = {"universal_newlines": True, "stdout": subprocess.PIPE}
     ps1 = subprocess.run(["cat", geojson_path], **kwargs)
     ps2 = subprocess.run(["supermercado", "burn", f"{zoom_level}"], input=ps1.stdout, **kwargs)
     ps3 = subprocess.run(["mercantile", "shapes"], input=ps2.stdout, **kwargs)
@@ -63,7 +54,9 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     # perform validation split
     assert 0 < val_percent < 1
     if val_by_y:
-        split_y = np.percentile(tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100) # lowest 15% by y coordinate
+        split_y = np.percentile(
+            tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100
+        )  # lowest 15% by y coordinate
         tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
     else:
         tiles_df["dataset"] = np.random.rand(len(tiles_df)) > val_percent
@@ -72,7 +65,7 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     return tiles_df
 
 
-# preemptively fix and merge any invalid or overlapping geoms that would otherwise throw errors during the rasterize step. 
+# preemptively fix and merge any invalid or overlapping geoms that would otherwise throw errors during the rasterize step.
 # code from:
 # https://gis.stackexchange.com/questions/271733/geopandas-dissolve-overlapping-polygons
 # https://nbviewer.jupyter.org/gist/rutgerhofste/6e7c6569616c2550568b9ce9cb4716a3
@@ -99,92 +92,101 @@ def explode(gdf):
         
     """
     gs = gdf.explode()
-    gdf2 = gs.reset_index().rename(columns={0: 'geometry'})
-    gdf_out = gdf2.merge(gdf.drop('geometry', axis=1), left_on='level_0', right_index=True)
-    gdf_out = gdf_out.set_index(['level_0', 'level_1']).set_geometry('geometry')
+    gdf2 = gs.reset_index().rename(columns={0: "geometry"})
+    gdf_out = gdf2.merge(gdf.drop("geometry", axis=1), left_on="level_0", right_index=True)
+    gdf_out = gdf_out.set_index(["level_0", "level_1"]).set_geometry("geometry")
     gdf_out.crs = gdf.crs
     return gdf_out
+
 
 def cleanup_invalid_geoms(all_polys):
     """Fixed invalid geometries by merging them all together and then separating
     Args:
         all_polys (List or GeoSeries): list of separate polygons"""
     all_polys_merged = gpd.GeoDataFrame()
-    all_polys_merged['geometry'] = gpd.GeoSeries(cascaded_union([p.buffer(0) for p in all_polys]))
+    all_polys_merged["geometry"] = gpd.GeoSeries(cascaded_union([p.buffer(0) for p in all_polys]))
 
     gdf_out = explode(all_polys_merged)
     gdf_out = gdf_out.reset_index()
-    gdf_out.drop(columns=['level_0','level_1'], inplace=True)
-    all_polys = gdf_out['geometry']
+    gdf_out.drop(columns=["level_0", "level_1"], inplace=True)
+    all_polys = gdf_out["geometry"]
     return all_polys
 
 
-def save_tile_img(tif_path, xyz, tile_size, save_path='', prefix='', display=False):
-    x,y,z = xyz
-    tile, mask = rt_main.tile(tif_path, x,y,z, tilesize=tile_size)
-    imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',np.moveaxis(tile,0,2), check_contrast=False)
+def save_tile_img(tif_path, xyz, tile_size, save_path="", prefix="", display=False):
+    x, y, z = xyz
+    tile, mask = rt_main.tile(tif_path, x, y, z, tilesize=tile_size)
+    imsave(f"{save_path}/{prefix}{z}_{x}_{y}.png", np.moveaxis(tile, 0, 2), check_contrast=False)
 
 
-def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path='', prefix='', display=False):
-    x,y,z = xyz
-    tfm = from_bounds(*tile_poly.bounds, tile_size, tile_size) 
+def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path="", prefix="", display=False):
+    x, y, z = xyz
+    tfm = from_bounds(*tile_poly.bounds, tile_size, tile_size)
     # get poly inside the tile
     cropped_polys = [poly for poly in labels_poly if poly.intersects(tile_poly)]
     cropped_polys_gdf = gpd.GeoDataFrame(geometry=cropped_polys, crs=4326)
     # TODO: do manually because I don't like their definition of contact
     df = cropped_polys_gdf
-    feature_list = list(zip(df["geometry"], [255]*len(df)))
-    if len(feature_list) == 0: # if no buildings return zero mask
+    feature_list = list(zip(df["geometry"], [255] * len(df)))
+    if len(feature_list) == 0:  # if no buildings return zero mask
         mask = np.zeros((tile_size, tile_size), np.uint8)
     else:
-        mask = rast_features.rasterize(shapes=feature_list, out_shape=(args.tile_size, args.tile_size), transform=tfm)
-    imsave(f'{save_path}/{prefix}{z}_{x}_{y}.png',mask, check_contrast=False) 
+        mask = rast_features.rasterize(
+            shapes=feature_list, out_shape=(args.tile_size, args.tile_size), transform=tfm
+        )
+    imsave(f"{save_path}/{prefix}{z}_{x}_{y}.png", mask, check_contrast=False)
+
 
 def pool_wrapper(idx_tile):
     idx, tile = idx_tile
-    dataset = tile['dataset']
-    tile_poly = tile['geometry']
+    dataset = tile["dataset"]
+    tile_poly = tile["geometry"]
     try:
         save_tile_img(
-            tiff_path, 
-            tile['xyz'], 
-            args.tile_size, 
-            save_path=f'data/images-{args.tile_size}', 
-            prefix=f'{area_name}_{name}_{dataset}_')
+            tiff_path,
+            tile["xyz"],
+            args.tile_size,
+            save_path=f"data/images-{args.tile_size}",
+            prefix=f"{area_name}_{name}_{dataset}_",
+        )
 
         save_tile_mask(
-            all_polys, 
-            tile_poly, 
-            tile['xyz'], 
-            args.tile_size, 
-            save_path=f'data/masks-{args.tile_size}',
-            prefix=f'{area_name}_{name}_{dataset}_')
+            all_polys,
+            tile_poly,
+            tile["xyz"],
+            args.tile_size,
+            save_path=f"data/masks-{args.tile_size}",
+            prefix=f"{area_name}_{name}_{dataset}_",
+        )
 
     except rio_tiler.errors.TileOutsideBounds:
         print("TileOutsideBounds error")
-        pass # some tiles are outside of image bounds we need to catch this errors 
+        pass  # some tiles are outside of image bounds we need to catch this errors
+
 
 if __name__ == "__main__":
 
     start_time = time.time()
     args = parse_args()
-    
+
     # train1_cat = Catalog.from_file(args.data_path + 'catalog.json')
-    cols = {cols.id:cols for cols in Catalog.from_file(args.data_path + 'catalog.json').get_children()}
+    cols = {cols.id: cols for cols in Catalog.from_file(args.data_path + "catalog.json").get_children()}
 
     ## Prepare data folders
-    Path('data').mkdir(exist_ok=True)
-    Path(f'data/images-{args.tile_size}').mkdir(exist_ok=True)
-    Path(f'data/masks-{args.tile_size}').mkdir(exist_ok=True)
+    Path("data").mkdir(exist_ok=True)
+    Path(f"data/images-{args.tile_size}").mkdir(exist_ok=True)
+    Path(f"data/masks-{args.tile_size}").mkdir(exist_ok=True)
 
     # Iterate over different areas
-    print(f"Slicing images with zoom level={args.zoom_level}, tile size={args.tile_size} and {args.val_percent} val split")
+    print(
+        f"Slicing images with zoom level={args.zoom_level}, tile size={args.tile_size} and {args.val_percent} val split"
+    )
     for area_name, area_data in cols.items():
         print(f"\nProcessing area: {area_name}")
-        area_labels = [i for i in area_data.get_all_items() if 'label' in i.id]
-        area_labels_jsons = [i.make_asset_hrefs_absolute().assets['labels'].href for i in area_labels]
-        area_images = [i for i in area_data.get_all_items() if 'label' not in i.id]
-        area_images_tiffs = [i.make_asset_hrefs_absolute().assets['image'].href for i in area_images]
+        area_labels = [i for i in area_data.get_all_items() if "label" in i.id]
+        area_labels_jsons = [i.make_asset_hrefs_absolute().assets["labels"].href for i in area_labels]
+        area_images = [i for i in area_data.get_all_items() if "label" not in i.id]
+        area_images_tiffs = [i.make_asset_hrefs_absolute().assets["image"].href for i in area_images]
         area_id_names = [i.id for i in area_images]
         # iterate over different tiffs inside one area
         for name, geojson_path, tiff_path in zip(area_id_names, area_labels_jsons, area_images_tiffs):
@@ -193,12 +195,13 @@ if __name__ == "__main__":
 
             # Get tiles
             tiles_gdf = geojson_to_squares(
-                tiff_path[:-3] + "json", # pass full tiff geo for square slicer
-                zoom_level=args.zoom_level, 
-                val_percent=args.val_percent, 
+                tiff_path[:-3] + "json",  # pass full tiff geo for square slicer
+                zoom_level=args.zoom_level,
+                val_percent=args.val_percent,
                 outfile="/tmp/tiles.geojson",
-                val_by_y=args.val_by_y)
-                
+                val_by_y=args.val_by_y,
+            )
+
             # get not overlappping polygons
             all_polys = cleanup_invalid_geoms(labels_gdf.geometry)
             # use multiprocessing to speedup chips generation
