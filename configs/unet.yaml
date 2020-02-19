@@ -1,17 +1,14 @@
 # train config
-segm_arch: unet
-arch: se_resnet50
-# model_params: {"decoder_merge_policy": "cat"}
-# model_params: {"merge_policy": "cat"}
-# model_params: {"aspp_dilation_rates": [2, 4, 6]}
-optim: novograd
-lr: 1e-3
-workers: 8
-wd: 1e-4
-size: 384
-bs: 32
-decoder_warmup_epochs: 0
-epochs: 100
-cutmix: True
+tile_size: 768
 
-name: unet_nov_cutmix
+segm_arch: unet
+arch: resnet34
+workers: 8
+size: 384
+batch_size: 32
+decoder_warmup_epochs: 10
+short_epoch: True 
+epochs: 50
+# cutmix: True
+
+name: small_unet_r34

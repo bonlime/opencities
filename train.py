@@ -1,7 +1,7 @@
 import os
 import yaml
 import time
-import wandb
+# import wandb
 import numpy as np
 import albumentations as albu
 import albumentations.pytorch as albu_pt
@@ -26,18 +26,17 @@ from src.callbacks import PredictViewer
 
 def main():
     FLAGS = parse_args()
-    wandb.init(project="opencities", name=FLAGS.name, sync_tensorboard=True)
-    wandb.config.update(FLAGS)
-    FLAGS.outdir = wandb.run.dir
-    pt.utils.misc.set_random_seed(42)  # fix all seeds
-    ## dump config
-    # os.makedirs(FLAGS.outdir, exist_ok=True)
-    # yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
-    ## get dataloaders
+    pt.utils.misc.set_random_seed(123) # fix all seeds
+
+    ## Save config file
+    os.makedirs(FLAGS.outdir, exist_ok=True)
+    yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
+
+    ## Get dataloaders
     train_dtld, val_dtld = get_dataloaders(FLAGS)
 
-    ## get model and optimizer
+    ## Get model and optimizer
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
     optimizer = optimizer_from_name(FLAGS.optim)(
         model.parameters(),

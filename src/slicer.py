@@ -29,7 +29,7 @@ else:
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
-def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.15, val_by_y=False):
+def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.15, random_val=True):
     """Turn Geojson with buildings annotations to non overlapping squares at `zoom_level`
     supermercado could only be run from comand line, so I'm using chaining of runs to simulate one long
     command
@@ -54,14 +54,13 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     tiles_df["xyz"] = tiles_df.id.apply(lambda x: list(eval(x)))
     # perform validation split
     assert 0 < val_percent < 1
-    if val_by_y:
-        split_y = np.percentile(
-            tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100
-        )  # lowest 15% by y coordinate
-        tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
-    else:
+    if random_val:
         tiles_df["dataset"] = np.random.rand(len(tiles_df)) > val_percent
         tiles_df["dataset"] = tiles_df["dataset"].map(lambda x: "train" if x else "val")
+    else:
+        split_y = np.percentile(
+            tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100) # lowest 15% by y coordinate
+        tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
 
     return tiles_df
 
@@ -113,7 +112,6 @@ def cleanup_invalid_geoms(all_polys):
     all_polys = gdf_out["geometry"]
     return all_polys
 
-
 def save_tile_img(tif_path, xyz, tile_size, save_path="", prefix=""):
     x, y, z = xyz
     tile, mask = rt_main.tile(tif_path, x, y, z, tilesize=tile_size)
@@ -134,9 +132,11 @@ def get_signed_distance_transform(mask, border=10):
 def save_tile_mask(labels_poly, tile_poly, xyz, tile_size, save_path="", prefix="", border_thickness=20):
     x, y, z = xyz
     tfm = from_bounds(*tile_poly.bounds, tile_size, tile_size)
+
     # get poly inside the tile
     cropped_polys = [poly for poly in labels_poly if poly.intersects(tile_poly)]
     cropped_polys_gdf = gpd.GeoDataFrame(geometry=cropped_polys, crs=4326)
+
     # TODO: do manually because I don't like their definition of contact
     df = cropped_polys_gdf
     feature_list = list(zip(df["geometry"], [255] * len(df)))
@@ -174,22 +174,19 @@ def pool_wrapper(idx_tile):
         )
 
     except rio_tiler.errors.TileOutsideBounds:
-        print("TileOutsideBounds error")
-        pass  # some tiles are outside of image bounds we need to catch this errors
-
+        pass # some tiles are outside of image bounds we need to catch this errors 
 
 if __name__ == "__main__":
 
     start_time = time.time()
     args = parse_args()
-
-    # train1_cat = Catalog.from_file(args.data_path + 'catalog.json')
-    cols = {cols.id: cols for cols in Catalog.from_file(args.data_path + "catalog.json").get_children()}
+    cols = {cols.id:cols for cols in Catalog.from_file(args.data_path + 'catalog.json').get_children()}
 
     ## Prepare data folders
-    Path("data").mkdir(exist_ok=True)
-    Path(f"data/images-{args.tile_size}").mkdir(exist_ok=True)
-    Path(f"data/masks-{args.tile_size}").mkdir(exist_ok=True)
+    Path('data').mkdir(exist_ok=True)
+    Path(f'data/{args.sub_folder}/images-{args.tile_size}').mkdir(exist_ok=True)
+    Path(f'data/{args.sub_folder}/masks-{args.tile_size}').mkdir(exist_ok=True)
+
 
     # Iterate over different areas
     print(
@@ -197,11 +194,13 @@ if __name__ == "__main__":
     )
     for area_name, area_data in cols.items():
         print(f"\nProcessing area: {area_name}")
+        
         area_labels = [i for i in area_data.get_all_items() if "label" in i.id]
         area_labels_jsons = [i.make_asset_hrefs_absolute().assets["labels"].href for i in area_labels]
         area_images = [i for i in area_data.get_all_items() if "label" not in i.id]
         area_images_tiffs = [i.make_asset_hrefs_absolute().assets["image"].href for i in area_images]
         area_id_names = [i.id for i in area_images]
+
         # iterate over different tiffs inside one area
         for name, geojson_path, tiff_path in zip(area_id_names, area_labels_jsons, area_images_tiffs):
             print(f"\tProcessing id: {name}")

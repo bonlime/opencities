@@ -36,7 +36,8 @@ class ToTensor(albu_pt.ToTensorV2):
         return torch.from_numpy(mask.transpose(2, 0, 1))
 
 
-# loads batches to cuda. TODO: check custom collate_fn instead. it should be faster
+# loads batches to cuda. 
+# TODO: check custom collate_fn instead. it should be faster
 # or just move to DALI and forget about all this
 class ToCudaLoader:
     def __init__(self, loader):

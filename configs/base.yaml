@@ -1,23 +1,29 @@
 # Slicer configs
 data_path: /home/zakirov/datasets/opencities/train_tier_1/ # train_tier_2/
+sub_folder: "tier1"
 zoom_level: 19
-tile_size: 512
-val_percent: 0.15
 border_thickness: 20
+tile_size: 768
+val_percent: 0.20
+random_val: True
 
-# train config
+# Train config
 short_epoch: True 
 segm_arch: unet
 arch: resnet50
+# model_params: {}
 optim: novograd
 lr: 1e-3
 workers: 8
-wd: 1e-4
+weight_decay: 1e-4
 size: 256
-bs: 32
+batch_size: 32
 decoder_warmup_epochs: 10
 epochs: 100
+augmentation: "light"
+short_epoch: False 
+# cutmix: False
 criterion: [bce, 0.5,  dice,  0.5]
-# datasets: [opencities, inria] # will use both datasets for training and validation
-
+datasets: [tier1]
+# resume: "logs/dfdfgdfg"
 name: test_run

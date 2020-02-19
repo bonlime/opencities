@@ -15,18 +15,22 @@ def get_dataloaders(FLAGS):
     """Returns:
     train_dataloader, val_dataloader
     """
-    name_to_dataset = {"opencities": OpenCitiesDataset, "inria": InriaTilesDataset}
 
-    ## get augmentations
+    name_to_dataset = {
+        "tier1" : OpenCitiesDataset,
+        "inria" : InriaTilesDataset
+    }
+
+    ## Get augmentations 
     train_aug = get_aug(FLAGS.augmentation, size=FLAGS.size)
     val_aug = get_aug("val", size=FLAGS.size)
 
-    # get datasets
+    ## Get datasets
     val_datasets = []
     train_datasets = []
     for name in FLAGS.datasets:
-        val_datasets.append(name_to_dataset[name](split="val", transform=val_aug))
-        train_datasets.append(name_to_dataset[name](split="train", transform=train_aug))
+        val_datasets.append(name_to_dataset[name](split="val", transform=val_aug, tile_size=FLAGS.tile_size))
+        train_datasets.append(name_to_dataset[name](split="train", transform=train_aug, tile_size=FLAGS.tile_size))
 
     # concat all datasets into one
     val_dtst = reduce(lambda x, y: x + y, val_datasets)
@@ -40,28 +44,32 @@ def get_dataloaders(FLAGS):
     print(f"\nUsing datasets: {FLAGS.datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
     return train_dtld, val_dtld
 
-
 class OpenCitiesDataset(Dataset):
     def __init__(
-        self,
-        split="all",
-        transform=None,
-        imgs_path="data/images-512",
-        masks_path="data/masks-512",
-        buildings_only=True,
-    ):
-        """Args:
+        self, 
+        split='all', 
+        transform=None, 
+        imgs_path="data/tier1/images", 
+        masks_path="data/tier1/masks", 
+        tile_size=512,
+        buildings_only=True
+        ):
+      
+        """
+        Args:
             split (str): one of `val`, `train`, `all`
             transform (albu.Compose): albumentation transformation for images
             buildings_only (bool): Flag to return only masks for building without borders and contact
         """
-        ids = os.listdir(imgs_path)
+        
+        ids = os.listdir(imgs_path + f"-{tile_size}")
         if split == "train":
             self.ids = [i for i in ids if "train" in i]
         elif split == "val":
             self.ids = [i for i in ids if "val" in i]
-        self.imgs_path = imgs_path
-        self.masks_path = masks_path
+
+        self.imgs_path = imgs_path + f"-{tile_size}"
+        self.masks_path = masks_path + f"-{tile_size}"
         self.transform = albu.Compose([]) if transform is None else transform
         self.buildings_only = buildings_only
 
@@ -73,15 +81,21 @@ class OpenCitiesDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mask = cv2.imread(os.path.join(self.masks_path, self.ids[idx]))
         augmented = self.transform(image=img, mask=mask)
-        aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
+        aug_img, aug_mask = augmented['image'], augmented['mask'] / 255.0
+
         if self.buildings_only:
             ch_last = aug_mask.size(2) == 3
             aug_mask = aug_mask[:, :, 2:] if ch_last else aug_mask[2:, :, :]
+            
         return aug_img, aug_mask
 
-
 class OpenCitiesTestDataset(Dataset):
-    def __init__(self, transform=None, test_path="/home/zakirov/datasets/opencities/test"):
+    def __init__(
+        self, 
+        transform=None, 
+        test_path="/home/zakirov/datasets/opencities/test"
+        ):
+        
         ids = os.listdir(test_path)
         ids.remove("catalog.json")
         self.tiff_names = ids
