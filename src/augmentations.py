@@ -46,13 +46,11 @@ def get_aug(aug_type="val", size=256):
         ]
     )
 
-    if aug_type == "val":
-        return VAL_AUG
-    elif aug_type == "test":
-        return TEST_AUG
-    elif aug_type == "light":
-        return LIGHT_AUG
-    elif aug_type == "medium":
-        return MEDIUM_AUG
-    elif aug_type == "hard":
-        raise NotImplementedError
+    types = {
+        "val" : VAL_AUG,
+        "test" : TEST_AUG,
+        "light" : LIGHT_AUG,
+        "medium" : MEDIUM_AUG
+    }
+
+    return types[aug_type]

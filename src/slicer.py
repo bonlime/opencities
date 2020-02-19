@@ -29,7 +29,7 @@ else:
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
-def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.15, val_by_y=False):
+def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.15, random_val=True):
     """Turn Geojson with buildings annotations to non overlapping squares at `zoom_level`
     supermercado could only be run from comand line, so I'm using chaining of runs to simulate one long
     command
@@ -54,14 +54,13 @@ def geojson_to_squares(geojson_path, zoom_level=19, outfile=None, val_percent=0.
     tiles_df["xyz"] = tiles_df.id.apply(lambda x: list(eval(x)))
     # perform validation split
     assert 0 < val_percent < 1
-    if val_by_y:
-        split_y = np.percentile(
-            tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100
-        )  # lowest 15% by y coordinate
-        tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
-    else:
+    if random_val:
         tiles_df["dataset"] = np.random.rand(len(tiles_df)) > val_percent
         tiles_df["dataset"] = tiles_df["dataset"].map(lambda x: "train" if x else "val")
+    else:
+        split_y = np.percentile(
+            tiles_df.xyz.apply(lambda x: x[1]), val_percent * 100) # lowest 15% by y coordinate
+        tiles_df["dataset"] = tiles_df.xyz.apply(lambda x: "train" if x[1] > split_y else "val")
 
     return tiles_df
 
@@ -182,9 +181,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     args = parse_args()
-
-    # train1_cat = Catalog.from_file(args.data_path + 'catalog.json')
-    cols = {cols.id: cols for cols in Catalog.from_file(args.data_path + "catalog.json").get_children()}
+    cols = {cols.id:cols for cols in Catalog.from_file(args.data_path + 'catalog.json').get_children()}
 
     ## Prepare data folders
     Path("data").mkdir(exist_ok=True)
