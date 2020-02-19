@@ -1,4 +1,6 @@
 # train config
+tile_size: 768
+
 segm_arch: unet
 arch: resnet34
 workers: 8
