@@ -1,14 +1,9 @@
 import os
 import yaml
 import time
-import wandb
-import numpy as np
-import albumentations as albu
-import albumentations.pytorch as albu_pt
 
 import apex
 import torch
-from torch.utils.data import DataLoader
 
 import pytorch_tools as pt
 from pytorch_tools.optim import optimizer_from_name
@@ -17,7 +12,6 @@ from pytorch_tools.fit_wrapper.callbacks import SegmCutmix
 
 from src.arg_parser import parse_args
 from src.dataset import get_dataloaders
-from src.utils import ToTensor
 from src.utils import MODEL_FROM_NAME
 from src.utils import criterion_from_list
 from src.callbacks import ThrJaccardScore
@@ -26,13 +20,11 @@ from src.callbacks import PredictViewer
 
 def main():
     FLAGS = parse_args()
-    wandb.init(project="opencities", name=FLAGS.name, sync_tensorboard=True)
-    wandb.config.update(FLAGS)
-    FLAGS.outdir = wandb.run.dir
+    print(FLAGS)
     pt.utils.misc.set_random_seed(42)  # fix all seeds
     ## dump config
-    # os.makedirs(FLAGS.outdir, exist_ok=True)
-    # yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
+    os.makedirs(FLAGS.outdir, exist_ok=True)
+    yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
     ## get dataloaders
     train_dtld, val_dtld = get_dataloaders(FLAGS)

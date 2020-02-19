@@ -174,7 +174,7 @@ def pool_wrapper(idx_tile):
         )
 
     except rio_tiler.errors.TileOutsideBounds:
-        print("TileOutsideBounds error")
+        # don't need print
         pass  # some tiles are outside of image bounds we need to catch this errors
 
 
@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     # Iterate over different areas
     print(
-        f"Slicing images with zoom level={args.zoom_level}, tile size={args.tile_size} and {args.val_percent} val split"
+        f"Slicing images with zoom level={args.zoom_level}, tile size={args.tile_size}, border={args.border_thickness} and {args.val_percent} val split"
     )
     for area_name, area_data in cols.items():
         print(f"\nProcessing area: {area_name}")

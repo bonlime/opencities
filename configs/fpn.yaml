@@ -9,10 +9,11 @@ workers: 8
 wd: 1e-4
 size: 384
 bs: 32
-decoder_warmup_epochs: 20
-epochs: 100
+decoder_warmup_epochs: 0
+epochs: 30
 # datasets: [opencities, inria]
 datasets: opencities
+cutmix: True
 
-name: 4.segm_fpn_nov_bce_dice_seresnet50_warmup
-# resume: logs/3.segm_fpn_nov_hinge_seresnet50_warmup_20200213_160637/model.chpn
+name: 4.fpn
+resume: logs/4.fpn_20200219_012749/model.chpn

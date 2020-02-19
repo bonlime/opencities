@@ -6,7 +6,7 @@ val_percent: 0.15
 border_thickness: 20
 
 # train config
-short_epoch: True 
+# short_epoch: True 
 segm_arch: unet
 arch: resnet50
 optim: novograd
