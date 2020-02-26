@@ -5,14 +5,19 @@ arch: se_resnet50
 # model_params: {"merge_policy": "cat"}
 model_params: {"aspp_dilation_rates": [2, 4, 6]}
 optim: novograd
-lr: 1e-3
+# lr: 1e-2
 workers: 8
 wd: 1e-4
 size: 384
 bs: 32
-decoder_warmup_epochs: 0
+decoder_warmup_epochs: 15
 epochs: 100
-# cutmix: True
+# epochs: 100 # replaced by phases now
+# datasets: [opencities, inria]
+phases: [{"ep":[0, 100], "lr": [ 0.01 , 0], mode: "cos"}]
+opt_level: O1
+# criterion: [bce, 0.5,  jaccard,  0.5]
+criterion: [hinge, 1, clip_mae, 1, bce, 1]
+cutmix: True
 
-
-name: 4.test2
+name: 5.deeplab_hinge_clip_mae_bce_warmup

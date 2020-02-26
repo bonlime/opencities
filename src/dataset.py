@@ -79,7 +79,7 @@ class OpenCitiesDataset(Dataset):
         augmented = self.transform(image=img, mask=mask)
         aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
         # change distance map from [0, 1] to [-1, 1]
-        aug_mask[:, :, 0] = aug_mask[:, :, 0] * 2 - 1
+        aug_mask[0, :, :] = aug_mask[0, :, :] * 2 - 1
         # ch_last = aug_mask.size(2) == 3
         # if self.return_distance:
         #     aug_mask = aug_mask[:, :, 0:1] if ch_last else aug_mask[0:1, :, :]
