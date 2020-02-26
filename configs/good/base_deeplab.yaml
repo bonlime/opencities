@@ -1,0 +1,20 @@
+# train config gives 0.74 on LB with inference on 512 and thr 0.5
+segm_arch: deeplab
+arch: resnet50
+# model_params: {"decoder_merge_policy": "cat"}
+# model_params: {"merge_policy": "cat"}
+model_params: {"aspp_dilation_rates": [2, 4, 6]}
+optim: novograd
+lr: 1e-2
+workers: 8
+wd: 1e-4
+size: 384
+bs: 32
+decoder_warmup_epochs: 0
+epochs: 100
+opt_level: O1
+criterion: [bce, 0.5,  dice,  0.5]
+cutmix: True
+
+
+name: 4.baseline_deeplab_nov_cutmix

@@ -47,7 +47,7 @@ def get_parser():
     add_arg("--epochs", default=100, type=int, help="Total number of epochs")
     add_arg("--weight_decay", "--wd", default=1e-4, type=float, help="weight decay (default: 1e-4)")
     add_arg("--size", default=256, type=int, help="Size of crops to train at")
-    add_arg("-bs", "--batch_size", default=16, type=int, help="Batch size")
+    add_arg("--bs", "--batch_size", default=16, type=int, help="Batch size")
     add_arg("--lr", default=1e-3, type=float, help="starting learning rate")
     add_arg("--outdir", default="", type=str, help="Do not pass it manually")
     add_arg(
@@ -74,6 +74,15 @@ def get_parser():
         nargs="+",
         help="List of criterions to use. Should be like `bce 0.5 dice 0.5`",
     )
+    add_arg("--opt_level", default="O0", type=str, help="Optimization level for apex")
+    add_arg(
+        "--phases",
+        type=eval,
+        action='append',
+        help="Specify epoch order of data resize and learning rate schedule:"
+        '[{"ep":0,"sz":128,"bs":64},{"ep":5,"lr":1e-2}]',
+    )
+
     return parser
 
 

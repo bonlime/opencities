@@ -16,8 +16,9 @@ wd: 1e-4
 size: 256
 bs: 32
 decoder_warmup_epochs: 10
-epochs: 100
 criterion: [bce, 0.5,  dice,  0.5]
+phases: [{"ep":[0, 100], "lr": [ 0.01 , 0], mode: "cos"}]
+# epochs: 100 # replaced by phases now
 # datasets: [opencities, inria] # will use both datasets for training and validation
 
 name: test_run

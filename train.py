@@ -8,12 +8,12 @@ import torch
 import pytorch_tools as pt
 from pytorch_tools.optim import optimizer_from_name
 from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
-from pytorch_tools.fit_wrapper.callbacks import SegmCutmix
 
 from src.arg_parser import parse_args
 from src.dataset import get_dataloaders
 from src.utils import MODEL_FROM_NAME
 from src.utils import criterion_from_list
+from src.utils import TargetWrapper
 from src.callbacks import ThrJaccardScore
 from src.callbacks import PredictViewer
 
@@ -49,15 +49,16 @@ def main():
 
     ## TODO: add lookahead
     ## train on fp16 by default
-    model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=2048)
+    model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=1024)
 
     ## get loss. fixed for now.
-    bce_loss = pt.losses.CrossEntropyLoss(mode="binary").cuda()
+    bce_loss = TargetWrapper(pt.losses.CrossEntropyLoss(mode="binary").cuda(), "mask")
     bce_loss.name = "BCE"
     loss = criterion_from_list(FLAGS.criterion).cuda()
+    # loss = 0.5 * pt.losses.CrossEntropyLoss(mode="binary", weight=[5]).cuda()
     print("Loss for this run is: ", loss)
     ## get runner
-    tb_logger = PredictViewer(FLAGS.outdir)
+    sheduler = pt.fit_wrapper.callbacks.PhasesScheduler(FLAGS.phases)
     runner = pt.fit_wrapper.Runner(
         model,
         optimizer,
@@ -65,13 +66,17 @@ def main():
         callbacks=[
             pt.fit_wrapper.callbacks.Timer(),
             pt.fit_wrapper.callbacks.ConsoleLogger(),
-            # pt.fit_wrapper.callbacks.ReduceLROnPlateau(patience=10),
-            SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
-            # pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
-            tb_logger,
+            sheduler,
+            pt.fit_wrapper.callbacks.SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
+            pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
+            PredictViewer(FLAGS.outdir, num_images=8),
             pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn"),
         ],
-        metrics=[bce_loss, pt.metrics.JaccardScore(mode="binary").cuda(), ThrJaccardScore(thr=0.5),],
+        metrics=[
+            bce_loss,
+            TargetWrapper(pt.metrics.JaccardScore(mode="binary").cuda(), "mask"),
+            TargetWrapper(ThrJaccardScore(thr=0.5), "mask"),
+        ],
     )
 
     if FLAGS.decoder_warmup_epochs > 0:
@@ -90,11 +95,21 @@ def main():
         for p in model.parameters():
             p.requires_grad = True
 
+        # need to init again to avoid nan's in loss
+        optimizer = optimizer_from_name(FLAGS.optim)(
+            model.parameters(),
+            lr=FLAGS.lr,
+            weight_decay=FLAGS.weight_decay,  # **FLAGS.optim_params TODO: add additional optim params if needed
+        )
+        model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=2048)
+        runner.state.model = model
+        runner.state.optimizer = optimizer
+
     runner.fit(
         train_dtld,
         val_loader=val_dtld,
         start_epoch=FLAGS.decoder_warmup_epochs,
-        epochs=FLAGS.epochs,
+        epochs=sheduler.tot_epochs,
         steps_per_epoch=50 if FLAGS.short_epoch else None,
         val_steps=50 if FLAGS.short_epoch else None,
     )

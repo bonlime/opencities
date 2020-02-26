@@ -34,7 +34,8 @@ def get_dataloaders(FLAGS):
     val_dtld = ToCudaLoader(val_dtld)
 
     train_dtst = reduce(lambda x, y: x + y, train_datasets)
-    train_dtld = DataLoader(train_dtst, batch_size=FLAGS.bs, shuffle=True, num_workers=8)
+    # without `drop_last` last batch consists of 1 element and BN fails
+    train_dtld = DataLoader(train_dtst, batch_size=FLAGS.bs, shuffle=True, num_workers=8, drop_last=True)
     train_dtld = ToCudaLoader(train_dtld)
 
     print(f"\nUsing datasets: {FLAGS.datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
@@ -48,35 +49,43 @@ class OpenCitiesDataset(Dataset):
         transform=None,
         imgs_path="data/images-512",
         masks_path="data/masks-512",
-        buildings_only=True,
+        buildings_only=False,
+        return_distance=False,
     ):
         """Args:
             split (str): one of `val`, `train`, `all`
             transform (albu.Compose): albumentation transformation for images
             buildings_only (bool): Flag to return only masks for building without borders and contact
+            return_distance (bool): overwrirtes buildings_only and returns only normalized distance maps
         """
         ids = os.listdir(imgs_path)
         if split == "train":
-            self.ids = [i for i in ids if "train" in i]
+            ids = [i for i in ids if "train" in i]
         elif split == "val":
-            self.ids = [i for i in ids if "val" in i]
-        self.imgs_path = imgs_path
-        self.masks_path = masks_path
+            ids = [i for i in ids if "val" in i]
+        self.img_ids = [os.path.join(imgs_path, i) for i in ids]
+        self.mask_ids = [os.path.join(masks_path, i) for i in ids]
         self.transform = albu.Compose([]) if transform is None else transform
         self.buildings_only = buildings_only
+        self.return_distance = return_distance
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.img_ids)
 
     def __getitem__(self, idx):
-        img = cv2.imread(os.path.join(self.imgs_path, self.ids[idx]))
+        img = cv2.imread(self.img_ids[idx])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(os.path.join(self.masks_path, self.ids[idx]))
+        mask = cv2.imread(self.mask_ids[idx])
         augmented = self.transform(image=img, mask=mask)
         aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
-        if self.buildings_only:
-            ch_last = aug_mask.size(2) == 3
-            aug_mask = aug_mask[:, :, 2:] if ch_last else aug_mask[2:, :, :]
+        # change distance map from [0, 1] to [-1, 1]
+        aug_mask[:, :, 0] = aug_mask[:, :, 0] * 2 - 1
+        # ch_last = aug_mask.size(2) == 3
+        # if self.return_distance:
+        #     aug_mask = aug_mask[:, :, 0:1] if ch_last else aug_mask[0:1, :, :]
+        #     aug_mask = aug_mask * 2 - 1 # from [0, 1] to [-1, 1]
+        # elif self.buildings_only:
+        #     aug_mask = aug_mask[:, :, 2:] if ch_last else aug_mask[2:, :, :]
         return aug_img, aug_mask
 
 

@@ -1,8 +1,6 @@
 import torch
-import numpy as np
 import pytorch_tools as pt
 from torchvision.utils import make_grid
-
 
 class ThrJaccardScore(pt.metrics.JaccardScore):
     """Calculate Jaccard on Thresholded by `thr` prediction. This function applyis sigmoid to prediction first"""
