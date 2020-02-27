@@ -1,5 +1,6 @@
 """Utils for slicing tiff image into windows"""
 import os
+import json
 import time
 import warnings
 import subprocess
@@ -205,9 +206,14 @@ if __name__ == "__main__":
             print(f"\tProcessing id: {name}")
             labels_gdf = gpd.read_file(geojson_path)
 
+            # some tiff jsons have type "MultiPolygon". need to patch it to "Polygon" for geopandas to work properly
+            tiff_json = json.load(open(tiff_path[:-3] + "json"))
+            tiff_json["geometry"]["type"] = "Polygon"
+            json.dump(tiff_json, open("/tmp/tiff.json", "w"))
+
             # Get tiles
             tiles_gdf = geojson_to_squares(
-                tiff_path[:-3] + "json",  # pass full tiff geo for square slicer
+                "/tmp/tiff.json",
                 zoom_level=args.zoom_level,
                 val_percent=args.val_percent,
                 outfile="/tmp/tiles.geojson",
@@ -217,7 +223,7 @@ if __name__ == "__main__":
             # get not overlappping polygons
             all_polys = cleanup_invalid_geoms(labels_gdf.geometry)
             # use multiprocessing to speedup chips generation
-            pbar = tqdm(leave=False, total=len(tiles_gdf))
+            pbar = tqdm(leave=False, total=len(tiles_gdf), ncols=0, ascii=True)
             with Pool() as pool:
                 for _ in pool.imap_unordered(pool_wrapper, tiles_gdf.iterrows()):
                     pbar.update()
