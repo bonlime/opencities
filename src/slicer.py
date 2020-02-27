@@ -206,14 +206,14 @@ if __name__ == "__main__":
             print(f"\tProcessing id: {name}")
             labels_gdf = gpd.read_file(geojson_path)
 
-            # some tiff jsons have type "MultiPolygon". need to patch it to "Polygon" for geopandas to work properly
+            # some tiff jsons have type "MultiPolygon" which is not supported. just skip them
             tiff_json = json.load(open(tiff_path[:-3] + "json"))
-            tiff_json["geometry"]["type"] = "Polygon"
-            json.dump(tiff_json, open("/tmp/tiff.json", "w"))
+            if tiff_json["geometry"]["type"] == "MultiPolygon":
+                continue
 
             # Get tiles
             tiles_gdf = geojson_to_squares(
-                "/tmp/tiff.json",
+                tiff_path[:-3] + "json",
                 zoom_level=args.zoom_level,
                 val_percent=args.val_percent,
                 outfile="/tmp/tiles.geojson",
