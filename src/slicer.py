@@ -211,7 +211,7 @@ if __name__ == "__main__":
                 zoom_level=args.zoom_level,
                 val_percent=args.val_percent,
                 outfile="/tmp/tiles.geojson",
-                val_by_y=args.val_by_y,
+                random_val=args.random_val,
             )
 
             # get not overlappping polygons
