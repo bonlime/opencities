@@ -159,7 +159,7 @@ def pool_wrapper(idx_tile):
             tiff_path,
             tile["xyz"],
             args.tile_size,
-            save_path=f"data/images-{args.tile_size}",
+            save_path=f"data/{args.suffix}-images-{args.tile_size}",
             prefix=f"{area_name}_{name}_{dataset}_",
         )
 
@@ -168,7 +168,7 @@ def pool_wrapper(idx_tile):
             tile_poly,
             tile["xyz"],
             args.tile_size,
-            save_path=f"data/masks-{args.tile_size}",
+            save_path=f"data/{args.suffix}-masks-{args.tile_size}",
             prefix=f"{area_name}_{name}_{dataset}_",
         )
 
@@ -184,9 +184,10 @@ if __name__ == "__main__":
     cols = {cols.id:cols for cols in Catalog.from_file(args.data_path + 'catalog.json').get_children()}
 
     ## Prepare data folders
+    args.suffix = "tier_1" if "tier_1" in args.data_path else "tier_2" 
     Path("data").mkdir(exist_ok=True)
-    Path(f"data/images-{args.tile_size}").mkdir(exist_ok=True)
-    Path(f"data/masks-{args.tile_size}").mkdir(exist_ok=True)
+    Path(f"data/{args.suffix}-images-{args.tile_size}").mkdir(exist_ok=True)
+    Path(f"data/{args.suffix}-masks-{args.tile_size}").mkdir(exist_ok=True)
 
     # Iterate over different areas
     print(
