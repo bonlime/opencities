@@ -1,8 +1,8 @@
 # train config
 segm_arch: segm_bifpn
-arch: efficientnet_b4
+arch: se_resnet50
 # model_params: {"decoder_merge_policy": "cat"}
-model_params: {"merge_policy": "cat", "num_fpn_layers": 3}
+model_params: {"merge_policy": "cat", "num_fpn_layers": 2}
 # model_params: {"aspp_dilation_rates": [2, 4, 6]}
 optim: novograd
 # lr: 1e-2
@@ -13,11 +13,11 @@ bs: 32
 decoder_warmup_epochs: 10
 epochs: 100
 # epochs: 100 # replaced by phases now
-datasets: [opencities, inria]
+# datasets: [opencities, inria]
 phases: [{"ep":[0, 100], "lr": [ 0.01 , 0], mode: "cos"}]
 opt_level: O1
 # criterion: [bce, 0.5,  jaccard,  0.5]
 criterion: [hinge, 0.5, dice, 0.5]
 cutmix: True
 
-name: 6.segm_bifpn_3l_dice_hinge_2dtst_effnet-b4
+name: 6.segm_bifpn_2l_dice_hinge
