@@ -209,6 +209,7 @@ if __name__ == "__main__":
             # some tiff jsons have type "MultiPolygon" which is not supported. just skip them
             tiff_json = json.load(open(tiff_path[:-3] + "json"))
             if tiff_json["geometry"]["type"] == "MultiPolygon":
+                print("\t\tSkipped because MultiPolygon")
                 continue
 
             # Get tiles

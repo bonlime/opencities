@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 # local imports
 from src.arg_parser import get_parser
 from src.dataset import OpenCitiesDataset, OpenCitiesTestDataset
-from src.utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME
+from src.utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME, TargetWrapper
 from src.callbacks import ThrJaccardScore
 
 
@@ -33,7 +33,7 @@ def main():
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params)  # .cuda()
     sd = torch.load(os.path.join(FLAGS.outdir, "model.chpn"))["state_dict"]
     model.load_state_dict(sd)
-    model = model.cuda()
+    model = model.cuda().eval()
     model = apex.amp.initialize(model, verbosity=0)
     print("Loaded model")
     # get validation dataloaders
@@ -44,7 +44,13 @@ def main():
 
     if not FLAGS.no_val:
         runner = pt.fit_wrapper.Runner(
-            model, None, pt.losses.JaccardLoss(), [pt.metrics.JaccardScore(), ThrJaccardScore(thr=FLAGS.thr)]
+            model, 
+            None, 
+            TargetWrapper(pt.losses.JaccardLoss(), "mask"), 
+            [
+                TargetWrapper(pt.metrics.JaccardScore(), "mask"), 
+                TargetWrapper(ThrJaccardScore(thr=FLAGS.thr), "mask"),
+            ],
         )
         _, (jacc_score, thr_jacc_score) = runner.evaluate(val_dtld)
         print(f"Validation Jacc Score: {thr_jacc_score:.4f}")

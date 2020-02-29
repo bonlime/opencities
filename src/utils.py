@@ -21,6 +21,8 @@ class ClipL1Loss(pt.losses.L1Loss):
     """same as MSE but predictions are clipped in [-1, 1]"""
     def forward(self, input, target):
         input = torch.clamp(input, -1, 1)
+        if target.min() == 0:
+            target = target * 2 - 1
         return torch.nn.functional.mse_loss(input, target, reduction=self.reduction)
 
 MODEL_FROM_NAME = {
@@ -64,7 +66,7 @@ TARGET_TYPE_FROM_NAME = {
     "mse": "distance_map",
     "clip_mse": "distance_map",
     "mae": "distance_map",
-    "clip_mae": "distance_map",
+    "clip_mae": "mask", # "distance_map", # change mae to operate on mask
 }
 class TargetWrapper(pt.losses.Loss):
     """wrapper which gets particular channel from target for computing loss

@@ -125,8 +125,8 @@ class InriaTilesDataset(Dataset):
     def __getitem__(self, idx):
         img = cv2.imread(self.img_ids[idx])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(self.mask_ids[idx], cv2.IMREAD_GRAYSCALE)
-        mask = np.expand_dims(mask, 2)
+        mask = cv2.imread(self.mask_ids[idx]) #  cv2.IMREAD_GRAYSCALE # remove graysa
+        # mask = np.expand_dims(mask, 2)
         augmented = self.transform(image=img, mask=mask)
         aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
         return aug_img, aug_mask
