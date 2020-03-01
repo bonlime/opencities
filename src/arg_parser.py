@@ -94,4 +94,6 @@ def parse_args():
     timestamp = get_timestamp()
     name = args.name + "_" + timestamp if args.name else timestamp
     args.outdir = os.path.join("logs/", name)
+    if args.model_params.get("encoder_weights") == "None":
+        args.model_params["encoder_weights"] = None
     return args

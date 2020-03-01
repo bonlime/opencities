@@ -27,7 +27,7 @@ def main():
     yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
     ## get dataloaders
-    train_dtld, val_dtld = get_dataloaders(FLAGS)
+    train_dtld, val_dtld = get_dataloaders(FLAGS.datasets, FLAGS.augmentation, FLAGS.bs, FLAGS.size)
 
     ## get model and optimizer
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()

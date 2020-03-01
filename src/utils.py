@@ -43,6 +43,7 @@ LOSS_FROM_NAME = {
     "wbce": pt.losses.CrossEntropyLoss(mode="binary", weight=[5]),
     "dice": pt.losses.DiceLoss(mode="binary"),
     "jaccard": pt.losses.JaccardLoss(mode="binary"),
+    "log_jaccard": pt.losses.JaccardLoss(mode="binary", log_loss=True),
     "hinge": pt.losses.BinaryHinge(),
     "focal": pt.losses.BinaryFocalLoss(),
     "mse": pt.losses.MSELoss(),

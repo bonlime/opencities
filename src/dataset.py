@@ -11,34 +11,67 @@ from src.utils import ToCudaLoader
 from src.augmentations import get_aug
 
 
-def get_dataloaders(FLAGS):
+def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
     """Returns:
     train_dataloader, val_dataloader
     """
-    name_to_dataset = {"opencities": OpenCitiesDataset, "inria": InriaTilesDataset}
 
     ## get augmentations
-    train_aug = get_aug(FLAGS.augmentation, size=FLAGS.size)
-    val_aug = get_aug("val", size=FLAGS.size)
+    train_aug = get_aug(augmentation, size=size)
+    val_aug = get_aug("val", size=size)
 
     # get datasets
     val_datasets = []
     train_datasets = []
-    for name in FLAGS.datasets:
-        val_datasets.append(name_to_dataset[name](split="val", transform=val_aug))
-        train_datasets.append(name_to_dataset[name](split="train", transform=train_aug))
+    if "tier1" in datasets:
+        val_datasets.append(
+            OpenCitiesDataset(
+                split="val",
+                transform=val_aug,
+                imgs_path="data/tier_1-images-512",
+                masks_path="data/tier_1-masks-512",
+            )
+        )
+        train_datasets.append(
+            OpenCitiesDataset(
+                split="train",
+                transform=train_aug,
+                imgs_path="data/tier_1-images-512",
+                masks_path="data/tier_1-masks-512",
+            )
+        )
+    if "tier2" in datasets:
+        val_datasets.append(
+            OpenCitiesDataset(
+                split="val",
+                transform=val_aug,
+                imgs_path="data/tier_2-images-512",
+                masks_path="data/tier_2-masks-512",
+            )
+        )
+        train_datasets.append(
+            OpenCitiesDataset(
+                split="train",
+                transform=train_aug,
+                imgs_path="data/tier_2-images-512",
+                masks_path="data/tier_2-masks-512",
+            )
+        ) 
+    if "inria" in datasets:
+        val_datasets.append(InriaTilesDataset(split="val", transform=val_aug))
+        train_datasets.append(InriaTilesDataset(split="train", transform=train_aug))
 
     # concat all datasets into one
     val_dtst = reduce(lambda x, y: x + y, val_datasets)
-    val_dtld = DataLoader(val_dtst, batch_size=FLAGS.bs, shuffle=False, num_workers=8)
+    val_dtld = DataLoader(val_dtst, batch_size=batch_size, shuffle=False, num_workers=8)
     val_dtld = ToCudaLoader(val_dtld)
 
     train_dtst = reduce(lambda x, y: x + y, train_datasets)
     # without `drop_last` last batch consists of 1 element and BN fails
-    train_dtld = DataLoader(train_dtst, batch_size=FLAGS.bs, shuffle=True, num_workers=8, drop_last=True)
+    train_dtld = DataLoader(train_dtst, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
     train_dtld = ToCudaLoader(train_dtld)
 
-    print(f"\nUsing datasets: {FLAGS.datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
+    print(f"\nUsing datasets: {datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
     return train_dtld, val_dtld
 
 
@@ -47,8 +80,8 @@ class OpenCitiesDataset(Dataset):
         self,
         split="all",
         transform=None,
-        imgs_path="data/images-512",
-        masks_path="data/masks-512",
+        imgs_path="data/tier_1-images-512",
+        masks_path="data/tier_1-masks-512",
         buildings_only=False,
         return_distance=False,
     ):
