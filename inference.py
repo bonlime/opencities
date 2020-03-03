@@ -2,24 +2,38 @@
 
 import os
 import cv2
+import apex
 import torch
 import shutil
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
+from multiprocessing import pool
 
 import apex
 import pytorch_tools as pt
+from pytorch_tools.utils.misc import to_numpy
 import albumentations as albu
 from torch.utils.data import DataLoader
 
 # local imports
 from src.arg_parser import get_parser
 from src.dataset import OpenCitiesDataset, OpenCitiesTestDataset
+from src.augmentations import get_aug
 from src.utils import ToCudaLoader, ToTensor, MODEL_FROM_NAME, TargetWrapper
 from src.callbacks import ThrJaccardScore
 
+PREDS_PATH = None
+THR = None
+def save_pred(single_pred_idx):
+    single_pred, idx = single_pred_idx
+    global PREDS_PATH
+    global THR
+    single_pred = cv2.resize(single_pred, (1024, 1024))
+    single_pred = (single_pred > THR).astype(np.uint8)
+    cv2.imwrite(str(PREDS_PATH / (idx + ".tif")), single_pred)
 
+@torch.no_grad()
 def main():
     parser = get_parser()
     parser.add_argument("--no_val", action="store_true", help="Disable validation")
@@ -60,39 +74,48 @@ def main():
 
     # Predict on test
     # for now simply resize it to proper size
-    test_aug = albu.Compose(
-        [
-            albu.Resize(FLAGS.size, FLAGS.size),  # TODO: check how does intrepolation affect results
-            albu.Normalize(),
-            ToTensor(),
-        ]
-    )
-    test_dtst = OpenCitiesTestDataset(transform=test_aug)
-    # test_dtld = DataLoader(val_dtst, batch_size=FLAGS.bs, shuffle=False, num_workers=8)
+    test_aug = get_aug("test", size=FLAGS.size) 
 
-    preds_path = Path("data/preds")
+    test_dataset = OpenCitiesTestDataset(transform=test_aug)
+    test_loader = DataLoader(test_dataset, batch_size=FLAGS.bs, shuffle=False, num_workers=8, )
+
+    global PREDS_PATH
+    global THR
+    THR = FLAGS.thr
+    PREDS_PATH = Path("data/preds")
     preds_preview_path = Path(FLAGS.outdir) / "preds_preview"
     shutil.rmtree(preds_preview_path, ignore_errors=True)
-    preds_path.mkdir(exist_ok=True)
+    PREDS_PATH.mkdir(exist_ok=True)
     preds_preview_path.mkdir(exist_ok=True)
+    workers_pool = pool.Pool()
 
-    for imgs_count, (img, aug_img, idx) in enumerate(tqdm(test_dtst)):
-        aug_img = aug_img.view(1, *aug_img.shape)  # add batch dimension
-        pred = pt.utils.misc.to_numpy(model(aug_img.cuda())).squeeze()
-        pred = cv2.resize(pred, (1024, 1024))
-        pred = (pred > FLAGS.thr).astype(np.uint8)
-        # make copy of the image with houses in red and save them both together to check that it's valid
-        img2 = img.copy()
-        img2[pred.astype(bool)] = [255, 0, 0]
-        combined = cv2.cvtColor(np.hstack([img, img2]), cv2.COLOR_RGB2BGR)
-        # only save preview with --short_predict. only save predicts for full test run.
+    for imgs, aug_imgs, idxs in tqdm(test_loader):
+        # aug_img = aug_img.view(1, *aug_img.shape)  # add batch dimension
+        preds = to_numpy(model(aug_imgs.cuda()).sigmoid()).squeeze()
+        workers_pool.map(save_pred, zip(preds, idxs))
+
         if FLAGS.short_predict:
-            cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
-            if imgs_count > 30:
-                break
-        else:
-            cv2.imwrite(str(preds_path / (idx + ".tif")), pred)
-
+            for img, idx, pred in zip(imgs, idxs, preds):
+                img2 = to_numpy(img).copy()
+                pred = cv2.resize(pred, (1024, 1024))
+                img2[(pred > THR).astype(bool)] = [255, 0, 0]
+                combined = cv2.cvtColor(np.hstack([img, img2]), cv2.COLOR_RGB2BGR)
+                cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
+            break
+        # pred = cv2.resize(pred, (1024, 1024))
+        # pred = (pred > FLAGS.thr).astype(np.uint8)
+        # make copy of the image with houses in red and save them both together to check that it's valid
+        # img2 = img.copy()
+        # img2[pred.astype(bool)] = [255, 0, 0]
+        # combined = cv2.cvtColor(np.hstack([img, img2]), cv2.COLOR_RGB2BGR)
+        # only save preview with --short_predict. only save predicts for full test run.
+        # if FLAGS.short_predict:
+        #     cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
+        #     if imgs_count > 30:
+        #         break
+        # else:
+            # cv2.imwrite(str(preds_path / (idx + ".tif")), pred)
+    workers_pool.close()
 
 if __name__ == "__main__":
     main()
