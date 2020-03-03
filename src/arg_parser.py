@@ -25,19 +25,8 @@ def get_parser():
     # training args
     add_arg("--arch", "-a", default="se_resnet50", help="Backbone architecture")
     add_arg("--model_params", type=eval, default={}, help="Additional model params as kwargs")
-    add_arg(
-        "--segm_arch",
-        default="unet",
-        type=str,
-        # choices=["unet", "linknet", "deeplab"],
-        help="Segmentation architecture to use",
-    )
-    add_arg(
-        "--optim",
-        type=str,
-        default="adamw",  # choices=['sgd', 'sgdw', 'adam', 'adamw', 'rmsprop', 'radam'],
-        help="Optimizer to use (default: adamw)",
-    )
+    add_arg("--segm_arch", default="unet", type=str, help="Segmentation architecture to use")
+    add_arg("--optim", type=str, default="adamw", help="Optimizer to use (default: adamw)")
     add_arg(
         "-j", "--workers", default=8, type=int, help="number of data loading workers (default: 4)",
     )
@@ -94,6 +83,4 @@ def parse_args():
     timestamp = get_timestamp()
     name = args.name + "_" + timestamp if args.name else timestamp
     args.outdir = os.path.join("logs/", name)
-    if args.model_params.get("encoder_weights") == "None":
-        args.model_params["encoder_weights"] = None
     return args

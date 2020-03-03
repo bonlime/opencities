@@ -40,10 +40,11 @@ def main():
         checkpoint = torch.load(FLAGS.resume, map_location=lambda storage, loc: storage.cuda())
         model.load_state_dict(checkpoint["state_dict"])
         # FLAGS.start_epoch = checkpoint["epoch"]
-        try:
-            optimizer.load_state_dict(checkpoint["optimizer"])
-        except:  # may raise an error if another optimzer was used
-            print("Failed to load state dict into optimizer")
+        # don't want to load optimizer to get to maybe better point
+        # try:
+        #     optimizer.load_state_dict(checkpoint["optimizer"])
+        # except:  # may raise an error if another optimzer was used
+        #     print("Failed to load state dict into optimizer")
     num_params = pt.utils.misc.count_parameters(model)[0]
     print(f"Number of parameters: {num_params / 1e6:.02f}M")
 

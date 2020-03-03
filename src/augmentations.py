@@ -17,8 +17,12 @@ def get_aug(aug_type="val", size=256):
     CROP_AUG = albu.RandomResizedCrop(size, size, scale=(0.08, 0.3))
     VAL_AUG = albu.Compose([albu.CenterCrop(size, size), NORM_TO_TENSOR,])
 
-    TEST_AUG = NORM_TO_TENSOR
-
+    TEST_AUG = albu.Compose(
+        [
+            albu.Resize(size, size),
+            NORM_TO_TENSOR,
+        ]
+    )
     LIGHT_AUG = albu.Compose([CROP_AUG, albu.Flip(), albu.RandomRotate90(), NORM_TO_TENSOR,])
 
     MEDIUM_AUG = albu.Compose(
