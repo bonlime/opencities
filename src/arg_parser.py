@@ -27,6 +27,7 @@ def get_parser():
     add_arg("--model_params", type=eval, default={}, help="Additional model params as kwargs")
     add_arg("--segm_arch", default="unet", type=str, help="Segmentation architecture to use")
     add_arg("--optim", type=str, default="adamw", help="Optimizer to use (default: adamw)")
+    add_arg("--lookahead", action="store_true", help="Flag to wrap optimizer with lookahead")
     add_arg(
         "-j", "--workers", default=8, type=int, help="number of data loading workers (default: 4)",
     )

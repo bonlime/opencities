@@ -63,12 +63,12 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
 
     # concat all datasets into one
     val_dtst = reduce(lambda x, y: x + y, val_datasets)
-    val_dtld = DataLoader(val_dtst, batch_size=batch_size, shuffle=False, num_workers=8)
+    val_dtld = DataLoader(val_dtst, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
     val_dtld = ToCudaLoader(val_dtld)
 
     train_dtst = reduce(lambda x, y: x + y, train_datasets)
     # without `drop_last` last batch consists of 1 element and BN fails
-    train_dtld = DataLoader(train_dtst, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
+    train_dtld = DataLoader(train_dtst, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True, pin_memory=True)
     train_dtld = ToCudaLoader(train_dtld)
 
     print(f"\nUsing datasets: {datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")

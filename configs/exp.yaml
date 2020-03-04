@@ -2,9 +2,10 @@
 segm_arch: segm_bifpn
 arch: se_resnet50
 # model_params: {"decoder_merge_policy": "cat"}
-# model_params: {"merge_policy": "cat", "num_fpn_layers": 2}
-model_params: {"merge_policy": "cat", "num_fpn_layers": 2, "encoder_weights": "None", "deep_stem": True, "antialias": True}
-# model_params: {"aspp_dilation_rates": [2, 4, 6]}
+# model_params: {"merge_policy": "cat", "num_fpn_layers": 3}
+model_params: {"merge_policy": "cat", "num_fpn_layers": 2, "drop_rate": 0.1}
+# model_params: {"aspp_dilation_rates": [2, 4, 6], "drop_rate": 0.1}
+lookahead: True
 optim: novograd
 # lr: 1e-2
 workers: 8
@@ -13,12 +14,13 @@ size: 384
 bs: 32
 decoder_warmup_epochs: 0
 # epochs: 100 # replaced by phases now
-datasets: [tier1, tier2]
+# datasets: [tier1, tier2, inria]
+datasets: [tier1, inria]
 # phases: [{"ep":[0, 2], "lr": [0, 0.5]}, {"ep":[2, 6], "lr": [0.5, 0.01]}, {"ep":[6, 50], "lr": [ 0.01 , 0], mode: "cos"}]
-phases: [{"ep":[0, 100], "lr": [ 0.02 , 0], mode: "cos"}]
+phases: [{"ep":[0, 100], "lr": [ 0.01 , 0], mode: "cos"}]
 opt_level: O1
-# criterion: [bce, 0.5,  jaccard,  0.5]
-criterion: [hinge, 0.5, dice, 0.5]
-# cutmix: True
-# resume: logs/7.bifpn_2l_bce_jacc_2tiers_better_se_res50_20200229_145537/model.chpn
-name: 7.bifpn_2l_hinge_dice_2tiers_better_se_res50 #_resume
+criterion: [reduced_focal,  1]
+cutmix: True
+# resume: logs/8.deeplab_reduced_focal_20200302_183355/model.chpn
+# resume: logs/8.bifpn_reduced_focal_20200302_191335/model.chpn
+name: 11.bifpn_2l_2dtst_lookahead_cut #_resume

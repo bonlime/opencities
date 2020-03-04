@@ -106,9 +106,9 @@ class ToTensor(albu_pt.ToTensorV2):
 class ToCudaLoader:
     def __init__(self, loader):
         self.loader = loader
-
+        
     def __iter__(self):
-        return ([i.cuda() for i in batch] for batch in self.loader)
-
+        return ([img.cuda(non_blocking=True), target.cuda(non_blocking=True)] for img, target in self.loader)
+    
     def __len__(self):
         return len(self.loader)

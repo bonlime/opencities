@@ -36,19 +36,15 @@ def main():
         lr=FLAGS.lr,
         weight_decay=FLAGS.weight_decay,  # **FLAGS.optim_params TODO: add additional optim params if needed
     )
+    if FLAGS.lookahead:
+        optimizer = pt.optim.Lookahead(optimizer)
+        
     if FLAGS.resume:
         checkpoint = torch.load(FLAGS.resume, map_location=lambda storage, loc: storage.cuda())
         model.load_state_dict(checkpoint["state_dict"])
-        # FLAGS.start_epoch = checkpoint["epoch"]
-        # don't want to load optimizer to get to maybe better point
-        # try:
-        #     optimizer.load_state_dict(checkpoint["optimizer"])
-        # except:  # may raise an error if another optimzer was used
-        #     print("Failed to load state dict into optimizer")
     num_params = pt.utils.misc.count_parameters(model)[0]
     print(f"Number of parameters: {num_params / 1e6:.02f}M")
 
-    ## TODO: add lookahead
     ## train on fp16 by default
     model, optimizer = apex.amp.initialize(model, optimizer, opt_level="O1", verbosity=0, loss_scale=1024)
 
