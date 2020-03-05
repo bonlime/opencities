@@ -72,7 +72,8 @@ def get_parser():
         help="Specify epoch order of data resize and learning rate schedule:"
         '[{"ep":0,"sz":128,"bs":64},{"ep":5,"lr":1e-2}]',
     )
-
+    add_arg("--dropout", type=float, default=0, help="Max spatial dropout value")
+    add_arg("--dropout_epochs", type=int, default=20, help="Number of epochs for dropout to fully take effect")
     return parser
 
 

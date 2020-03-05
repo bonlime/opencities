@@ -71,7 +71,7 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
     train_dtld = DataLoader(train_dtst, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True, pin_memory=True)
     train_dtld = ToCudaLoader(train_dtld)
 
-    print(f"\nUsing datasets: {datasets}. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
+    print(f"\nUsing datasets: {datasets}. With {augmentation} augmentation. Train size: {len(train_dtst)}. Val size {len(val_dtst)}.")
     return train_dtld, val_dtld
 
 

@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--no_test", action="store_true", help="Disable prediction on test")
     parser.add_argument("--short_predict", action="store_true", help="Predict only first 10 images")
     parser.add_argument("--thr", default=0.5, type=float, help="Threshold for cutting")
+    parser.add_argument("--tta", action="store_true", help="Enables TTA")
     FLAGS = parser.parse_args()
     assert os.path.exists(FLAGS.outdir), "You have to pass config after training to inference script"
     # get model
@@ -48,6 +49,10 @@ def main():
     sd = torch.load(os.path.join(FLAGS.outdir, "model.chpn"))["state_dict"]
     model.load_state_dict(sd)
     model = model.cuda().eval()
+    if FLAGS.tta:
+        model = pt.tta_wrapper.TTA(
+            model, segm=True, h_flip=True, rotation=[90], merge="gmean", activation="sigmoid"
+        )
     model = apex.amp.initialize(model, verbosity=0)
     print("Loaded model")
     # get validation dataloaders
@@ -91,7 +96,10 @@ def main():
 
     for imgs, aug_imgs, idxs in tqdm(test_loader):
         # aug_img = aug_img.view(1, *aug_img.shape)  # add batch dimension
-        preds = to_numpy(model(aug_imgs.cuda()).sigmoid()).squeeze()
+        preds = model(aug_imgs.cuda())
+        if not FLAGS.tta:
+            preds = preds.sigmoid()
+        preds = to_numpy(preds).squeeze()
         workers_pool.map(save_pred, zip(preds, idxs))
 
         if FLAGS.short_predict:

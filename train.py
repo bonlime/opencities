@@ -6,6 +6,7 @@ import apex
 import torch
 
 import pytorch_tools as pt
+import pytorch_tools.fit_wrapper.callbacks as pt_clb 
 from pytorch_tools.optim import optimizer_from_name
 from pytorch_tools.fit_wrapper.callbacks import Callback as NoClb
 
@@ -16,6 +17,7 @@ from src.utils import criterion_from_list
 from src.utils import TargetWrapper
 from src.callbacks import ThrJaccardScore
 from src.callbacks import PredictViewer
+from src.callbacks import ScheduledDropout
 
 
 def main():
@@ -61,13 +63,14 @@ def main():
         optimizer,
         criterion=loss,
         callbacks=[
-            pt.fit_wrapper.callbacks.Timer(),
-            pt.fit_wrapper.callbacks.ConsoleLogger(),
+            pt_clb.Timer(),
+            pt_clb.ConsoleLogger(),
+            pt_clb.FileLogger(FLAGS.outdir),
+            pt_clb.SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
+            pt_clb.CheckpointSaver(FLAGS.outdir, save_name="model.chpn"),
             sheduler,
-            pt.fit_wrapper.callbacks.SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
-            pt.fit_wrapper.callbacks.FileLogger(FLAGS.outdir),
             PredictViewer(FLAGS.outdir, num_images=8),
-            pt.fit_wrapper.callbacks.CheckpointSaver(FLAGS.outdir, save_name="model.chpn"),
+            ScheduledDropout(FLAGS.dropout, FLAGS.dropout_epochs) if FLAGS.dropout else NoClb()
         ],
         metrics=[
             bce_loss,
