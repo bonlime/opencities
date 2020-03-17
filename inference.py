@@ -38,7 +38,7 @@ def main():
     parser = get_parser()
     parser.add_argument("--no_val", action="store_true", help="Disable validation")
     parser.add_argument("--no_test", action="store_true", help="Disable prediction on test")
-    parser.add_argument("--short_predict", action="store_true", help="Predict only first 10 images")
+    parser.add_argument("--short_predict", default=0, type=int, help="Number of first images to show predict for")
     parser.add_argument("--thr", default=0.5, type=float, help="Threshold for cutting")
     parser.add_argument("--tta", action="store_true", help="Enables TTA")
     FLAGS = parser.parse_args()
@@ -93,7 +93,7 @@ def main():
     PREDS_PATH.mkdir(exist_ok=True)
     preds_preview_path.mkdir(exist_ok=True)
     workers_pool = pool.Pool()
-
+    cnt = 0
     for imgs, aug_imgs, idxs in tqdm(test_loader):
         # aug_img = aug_img.view(1, *aug_img.shape)  # add batch dimension
         preds = model(aug_imgs.cuda())
@@ -109,7 +109,10 @@ def main():
                 img2[(pred > THR).astype(bool)] = [255, 0, 0]
                 combined = cv2.cvtColor(np.hstack([img, img2]), cv2.COLOR_RGB2BGR)
                 cv2.imwrite(str(preds_preview_path / (idx + ".jpg")), combined)
-            break
+            if cnt < FLAGS.short_predict:
+                cnt += FLAGS.bs
+            else:
+                break
         # pred = cv2.resize(pred, (1024, 1024))
         # pred = (pred > FLAGS.thr).astype(np.uint8)
         # make copy of the image with houses in red and save them both together to check that it's valid

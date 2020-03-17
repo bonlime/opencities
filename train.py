@@ -29,10 +29,19 @@ def main():
     yaml.dump(vars(FLAGS), open(FLAGS.outdir + '/config.yaml', 'w'))
 
     ## get dataloaders
-    train_dtld, val_dtld = get_dataloaders(FLAGS.datasets, FLAGS.augmentation, FLAGS.bs, FLAGS.size)
+    if FLAGS.train_tta:
+        FLAGS.bs //= 4 # account for later augmentations to avoid OOM
+    train_dtld, val_dtld = get_dataloaders(
+        FLAGS.datasets, FLAGS.augmentation, FLAGS.bs, FLAGS.size, FLAGS.buildings_only
+    )
 
     ## get model and optimizer
     model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
+    if FLAGS.train_tta:
+        # idea from https://arxiv.org/pdf/2002.09024.pdf paper
+        model = pt.tta_wrapper.TTA(model, segm=True, h_flip=True, rotation=[90], merge="max")
+        model.encoder = model.model.encoder
+        model.decoder = model.model.decoder
     optimizer = optimizer_from_name(FLAGS.optim)(
         model.parameters(),
         lr=FLAGS.lr,
@@ -43,7 +52,7 @@ def main():
         
     if FLAGS.resume:
         checkpoint = torch.load(FLAGS.resume, map_location=lambda storage, loc: storage.cuda())
-        model.load_state_dict(checkpoint["state_dict"])
+        model.load_state_dict(checkpoint["state_dict"], strict=False)
     num_params = pt.utils.misc.count_parameters(model)[0]
     print(f"Number of parameters: {num_params / 1e6:.02f}M")
 

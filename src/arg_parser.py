@@ -74,6 +74,8 @@ def get_parser():
     )
     add_arg("--dropout", type=float, default=0, help="Max spatial dropout value")
     add_arg("--dropout_epochs", type=int, default=20, help="Number of epochs for dropout to fully take effect")
+    add_arg("--train_tta", action="store_true", help="Enables TTA during training")
+    add_arg("--buildings_only", action="store_true", help="Flag to filter images without buildings away")
     return parser
 
 

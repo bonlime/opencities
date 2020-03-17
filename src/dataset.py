@@ -11,7 +11,7 @@ from src.utils import ToCudaLoader
 from src.augmentations import get_aug
 
 
-def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
+def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384, buildings_only=False):
     """Returns:
     train_dataloader, val_dataloader
     """
@@ -30,6 +30,7 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
                 transform=val_aug,
                 imgs_path="data/tier_1-images-512",
                 masks_path="data/tier_1-masks-512",
+                buildings_only=buildings_only,
             )
         )
         train_datasets.append(
@@ -38,6 +39,7 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
                 transform=train_aug,
                 imgs_path="data/tier_1-images-512",
                 masks_path="data/tier_1-masks-512",
+                buildings_only=buildings_only,
             )
         )
     if "tier2" in datasets:
@@ -47,6 +49,7 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
                 transform=val_aug,
                 imgs_path="data/tier_2-images-512",
                 masks_path="data/tier_2-masks-512",
+                buildings_only=buildings_only,
             )
         )
         train_datasets.append(
@@ -55,11 +58,24 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384):
                 transform=train_aug,
                 imgs_path="data/tier_2-images-512",
                 masks_path="data/tier_2-masks-512",
+                buildings_only=buildings_only,
             )
-        ) 
+        )
     if "inria" in datasets:
-        val_datasets.append(InriaTilesDataset(split="val", transform=val_aug))
-        train_datasets.append(InriaTilesDataset(split="train", transform=train_aug))
+        val_datasets.append(
+            InriaTilesDataset(
+                split="val",
+                transform=val_aug,
+                buildings_only=buildings_only
+            )
+        )
+        train_datasets.append(
+            InriaTilesDataset(
+                split="train",
+                transform=train_aug,
+                buildings_only=buildings_only,
+            )
+        )
 
     # concat all datasets into one
     val_dtst = reduce(lambda x, y: x + y, val_datasets)
@@ -83,24 +99,25 @@ class OpenCitiesDataset(Dataset):
         imgs_path="data/tier_1-images-512",
         masks_path="data/tier_1-masks-512",
         buildings_only=False,
-        return_distance=False,
     ):
         """Args:
             split (str): one of `val`, `train`, `all`
             transform (albu.Compose): albumentation transformation for images
-            buildings_only (bool): Flag to return only masks for building without borders and contact
-            return_distance (bool): overwrirtes buildings_only and returns only normalized distance maps
+            buildings_only (bool): Flag to return only images with buildings
         """
         ids = os.listdir(imgs_path)
         if split == "train":
             ids = [i for i in ids if "train" in i]
         elif split == "val":
             ids = [i for i in ids if "val" in i]
-        self.img_ids = [os.path.join(imgs_path, i) for i in ids]
-        self.mask_ids = [os.path.join(masks_path, i) for i in ids]
+        img_ids = [os.path.join(imgs_path, i) for i in ids]
+        mask_ids = [os.path.join(masks_path, i) for i in ids]
+        self.img_ids, self.mask_ids = np.array(img_ids), np.array(mask_ids)
         self.transform = albu.Compose([]) if transform is None else transform
-        self.buildings_only = buildings_only
-        self.return_distance = return_distance
+        if buildings_only:
+            # empty mask has size 842 bytes for images of size 512. Use this ibfo for filtering
+            has_buildings = [os.path.getsize(i) > 1000 for i in self.mask_ids]
+            self.img_ids, self.mask_ids = self.img_ids[has_buildings], self.mask_ids[has_buildings]
 
     def __len__(self):
         return len(self.img_ids)
@@ -113,12 +130,6 @@ class OpenCitiesDataset(Dataset):
         aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
         # change distance map from [0, 1] to [-1, 1]
         aug_mask[0, :, :] = aug_mask[0, :, :] * 2 - 1
-        # ch_last = aug_mask.size(2) == 3
-        # if self.return_distance:
-        #     aug_mask = aug_mask[:, :, 0:1] if ch_last else aug_mask[0:1, :, :]
-        #     aug_mask = aug_mask * 2 - 1 # from [0, 1] to [-1, 1]
-        # elif self.buildings_only:
-        #     aug_mask = aug_mask[:, :, 2:] if ch_last else aug_mask[2:, :, :]
         return aug_img, aug_mask
 
 
@@ -141,13 +152,15 @@ class OpenCitiesTestDataset(Dataset):
 
 
 class InriaTilesDataset(Dataset):
-    def __init__(self, split="all", transform=None):
+    def __init__(self, split="all", transform=None, buildings_only=False):
         super().__init__()
         df = pd.read_csv("/home/zakirov/datasets/AerialImageDataset/inria_tiles.csv", index_col=0)
+
         if split == "val":
             df = df[df.train == 0]
         elif split == "train":
             df = df[df.train == 1]
+        
         self.img_ids = df["image"].values
         self.mask_ids = df["mask"].values
         self.transform = albu.Compose([]) if transform is None else transform

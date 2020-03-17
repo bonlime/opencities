@@ -14,7 +14,7 @@ def get_aug(aug_type="val", size=256):
        size (int): final size of the crop"""
 
     NORM_TO_TENSOR = albu.Compose([albu.Normalize(), ToTensor()])
-    CROP_AUG = albu.RandomResizedCrop(size, size, scale=(0.05, 0.3))
+    CROP_AUG = albu.RandomResizedCrop(size, size, scale=(0.05, 0.4))
     VAL_AUG = albu.Compose([albu.CenterCrop(size, size), NORM_TO_TENSOR,])
 
     TEST_AUG = albu.Compose(

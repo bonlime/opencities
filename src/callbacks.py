@@ -4,7 +4,7 @@ from torchvision.utils import make_grid
 
 
 class ScheduledDropout(pt.fit_wrapper.callbacks.Callback):
-    def __init__(self, drop_rate=0.1, epochs=30, attr_name="decoder.dropout.p", verbose=True):
+    def __init__(self, drop_rate=0.1, epochs=30, attr_name="dropout.p", verbose=True):
         """
         Slowly changes dropout value for `attr_name` each epoch. 
         Args:
