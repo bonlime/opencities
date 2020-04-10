@@ -1,42 +1,54 @@
-# train config
-segm_arch: segm_bifpn
-# arch: se_resnet101
-arch: se_resnet101
-# model_params: {"decoder_merge_policy": "cat"}
-# model_params: {"merge_policy": "cat", "num_fpn_layers": 3}
-model_params: {"merge_policy": "cat", "num_fpn_layers": 4, "output_stride": 16}
-# model_params: {"merge_policy": "cat", "num_fpn_layers": 4, "deep_stem": True, "antialias": True, "encoder_weights": null}
-# model_params: {"aspp_dilation_rates": [2, 4, 6]}
-lookahead: True
+## MODEL
+segm_arch: unet
+arch: se_resnet50
+# model_params:
+  # merge_policy: cat
+  # num_fpn_layers: 3
+  # output_stride: 16
+  # aspp_dilation_rates: [2, 4, 6]
+  # encoder_weights: null
+
+## OPTIMIZER
 optim: novograd
-# lr: 1e-2
-workers: 8
-wd: 1e-4
-size: 384
-bs: 32
-decoder_warmup_epochs: 0
-# epochs: 100 # replaced by phases now
+# optim_params:
+#   init_zero: True # works as warmup for novograd. don't know if improves anything
+# lookahead: True
+wd: 2e-3
+
+## CRITERION
+criterion: [bce,  1]
+
+## DATALOADER
+augmentation: hard # medium
+bs: 24
+dataset: [inria_dali]
 # datasets: [tier1, tier2, inria]
 # datasets: [tier1, inria]
-dataset: [tier1]
-# phases: [{"ep":[0, 2], "lr": [0, 0.5]}, {"ep":[2, 6], "lr": [0.5, 0.01]}, {"ep":[6, 50], "lr": [ 0.01 , 0], mode: "cos"}]
-phases: [{"ep":[0, 50], "lr": [ 0.01 , 0], mode: "cos"}]
-opt_level: O1
-criterion: [reduced_focal,  1]
-# cutmix: True
-augmentation: hard
+size: 512
+val_size: 768 # validate on whole images
+workers: 8
+
+
+## TRAINING
+buildings_only: False
+cutmix: True
+decoder_warmup_epochs: 0
 dropout: 0.2
 dropout_epochs: 2
-buildings_only: True
-# train_tta: True
+# train_tta: False
+opt_level: O1
+# phases: [{"ep":[0, 2], "lr": [0, 0.5]}, {"ep":[2, 6], "lr": [0.5, 0.01]}, {"ep":[6, 50], "lr": [ 0.01 , 0], mode: "cos"}]
+phases: [{"ep":[0, 50], "lr": [ 0.01 , 0], mode: "cos"}]
+
+## RESUME & NAME
+name: _inr.2.unet_dali_huge_sz_ctmx
 # resume: logs/8.deeplab_reduced_focal_20200302_183355/model.chpn
 # resume: logs/8.bifpn_reduced_focal_20200302_191335/model.chpn
 # resume: logs/11.bifpn_2l_2dtst_seres101_20200304_233016/model.chpn
 # resume: logs/12.bifpn_3l_1dtst_effnetb3_20200305_134355/model.chpn
 # resume: logs/14.tune_2dtst_bifpn_4l_seres101_hard_augs_20200310_210420//model.chpn
 # resume: logs/13.bifpn_4l_3dtst_seres101_hard_augs_20200307_113309/model.chpn
-resume: logs/14.tune_2dtst_bifpn_4l_seres101_hard_augs_OS16_20200313_123409/model.chpn
+# resume: logs/14.tune_2dtst_bifpn_4l_seres101_hard_augs_OS16_20200313_123409/model.chpn
 # name: 14.tune_2dtst_bifpn_4l_seres101_hard_augs
 # name: 15.tune_1dtst_bifpn_4l_seres101_hard_augs_buildings_only
 # name: 15.tune_1dtst_deeplab_seres101_hard_augs_buildings_only
-name: 15.tune_1dtst_bifpn_4l_seres101_hard_augs_OS16

@@ -1,1 +1,1 @@
-docker build -f docker/Dockerfile -t comp/opencities:latest .
+docker build -f docker/Dockerfile -t bonlime/opencities:latest .

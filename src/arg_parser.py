@@ -37,6 +37,7 @@ def get_parser():
     add_arg("--epochs", default=100, type=int, help="Total number of epochs")
     add_arg("--weight_decay", "--wd", default=1e-4, type=float, help="weight decay (default: 1e-4)")
     add_arg("--size", default=256, type=int, help="Size of crops to train at")
+    add_arg("--val_size", default=256, type=int, help="Size of crops for validation")
     add_arg("--bs", "--batch_size", default=16, type=int, help="Batch size")
     add_arg("--lr", default=1e-3, type=float, help="starting learning rate")
     add_arg("--outdir", default="", type=str, help="Do not pass it manually")

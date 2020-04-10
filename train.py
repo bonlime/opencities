@@ -18,6 +18,7 @@ from src.utils import TargetWrapper
 from src.callbacks import ThrJaccardScore
 from src.callbacks import PredictViewer
 from src.callbacks import ScheduledDropout
+from src.callbacks import BalancedAccuracy2
 
 
 def main():
@@ -32,7 +33,7 @@ def main():
     if FLAGS.train_tta:
         FLAGS.bs //= 4 # account for later augmentations to avoid OOM
     train_dtld, val_dtld = get_dataloaders(
-        FLAGS.datasets, FLAGS.augmentation, FLAGS.bs, FLAGS.size, FLAGS.buildings_only
+        FLAGS.datasets, FLAGS.augmentation, FLAGS.bs, FLAGS.size, FLAGS.val_size, FLAGS.buildings_only
     )
 
     ## get model and optimizer
@@ -85,6 +86,7 @@ def main():
             bce_loss,
             TargetWrapper(pt.metrics.JaccardScore(mode="binary").cuda(), "mask"),
             TargetWrapper(ThrJaccardScore(thr=0.5), "mask"),
+            TargetWrapper(BalancedAccuracy2(balanced=False), "mask"),
         ],
     )
 

@@ -8,17 +8,18 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
 from src.utils import ToCudaLoader
+from src.dataset_dali import DaliLoader
 from src.augmentations import get_aug
 
 
-def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384, buildings_only=False):
+def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384, val_size=384, buildings_only=False):
     """Returns:
     train_dataloader, val_dataloader
     """
 
     ## get augmentations
     train_aug = get_aug(augmentation, size=size)
-    val_aug = get_aug("val", size=size)
+    val_aug = get_aug("val", size=val_size)
 
     # get datasets
     val_datasets = []
@@ -76,6 +77,11 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384, bu
                 buildings_only=buildings_only,
             )
         )
+    if "inria_dali" in datasets:
+        train_loader = DaliLoader(True, batch_size, size)
+        val_loader = DaliLoader(False, batch_size, val_size)
+        print(f"\nUsing datasets: {datasets}. Train size: {len(train_loader) * batch_size}. Val size {len(val_loader) * batch_size}.")
+        return train_loader, val_loader
 
     # concat all datasets into one
     val_dtst = reduce(lambda x, y: x + y, val_datasets)

@@ -2,6 +2,39 @@ import torch
 import pytorch_tools as pt
 from torchvision.utils import make_grid
 
+class BalancedAccuracy2: 
+     """ BalancedAccuracy == mean of recalls for each class 
+         >>> y_true = [0, 1, 0, 0, 1, 0] 
+         >>> y_pred = [0, 1, 0, 0, 0, 1] 
+         >>> BalancedAccuracy()(y_true, y_pred) 
+         0.625 
+     """ 
+  
+     def __init__(self, balanced=True): 
+        self.name = "BalancedAcc" if balanced else "Acc"
+        self.balanced = balanced
+
+     def __call__(self, output, target): 
+        """Args: 
+        output (Tensor): raw logits of shape (N, C) or already argmaxed of shape (N,) 
+        target (Long Tensor): true classes of shape (N,) or one-hot encoded of shape (N, C )""" 
+        if len(target.shape) > 1 and (target.size(1) > 1): 
+            target = target.argmax(1)
+        if len(output.shape) > 1:
+            if output.size(1) == 1:
+                # binary predictions case
+                output = output.gt(0).long()  
+            else:
+                output = output.argmax(1)
+        correct = output.eq(target)
+        if not self.balanced:
+            return correct.float().mean()
+        result = 0 
+        for cls in target.unique(): 
+            tp = (correct * target.eq(cls)).sum().float() 
+            tp_fn = target.eq(cls).sum() 
+            result += tp / tp_fn 
+        return result.mul(100.0 / target.unique().size(0)) 
 
 class ScheduledDropout(pt.fit_wrapper.callbacks.Callback):
     def __init__(self, drop_rate=0.1, epochs=30, attr_name="dropout.p", verbose=True):
