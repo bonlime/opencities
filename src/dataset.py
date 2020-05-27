@@ -77,6 +77,10 @@ def get_dataloaders(datasets, augmentation="medium", batch_size=16, size=384, va
                 buildings_only=buildings_only,
             )
         )
+    if "dl_proj" in datasets:
+        val_datasets.append(DL_Proj(split="val", transform=val_aug))
+        train_datasets.append(DL_Proj(split="train", transform=val_aug))
+
     if "inria_dali" in datasets:
         train_loader = DaliLoader(True, batch_size, size)
         val_loader = DaliLoader(False, batch_size, val_size)
@@ -179,6 +183,41 @@ class InriaTilesDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mask = cv2.imread(self.mask_ids[idx]) #  cv2.IMREAD_GRAYSCALE # remove graysa
         # mask = np.expand_dims(mask, 2)
+        augmented = self.transform(image=img, mask=mask)
+        aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
+        return aug_img, aug_mask
+
+class DL_Proj(Dataset):
+    def __init__(self, split="all", transform=None):
+        """Args:
+            split (str): one of `val`, `train`, `all`, `test`
+            transform (albu.Compose): albumentation transformation for images
+        """
+        IMG_PATH = "workdir/images_512"
+        MASK_PATH = "workdir/segm_masks"
+        BORDER_PATH = "workdir/border_masks"
+        ids = [int(i.split('.')[0]) for i in os.listdir(IMG_PATH)]
+        if split == "train":
+            ids = [i for i in ids if i % 10 > 1]
+        elif split == "val":
+            ids = [i for i in ids if i % 10 == 0]
+        elif split == "test":
+            ids = [i for i in ids if i % 10 == 1]
+        
+        self.img_ids = [f"{IMG_PATH}/{i}.png" for i in ids]
+        self.mask_ids = [f"{MASK_PATH}/{i}.png" for i in ids]
+        self.border_ids = [f"{BORDER_PATH}/{i}.png" for i in ids]
+        self.transform = albu.Compose([]) if transform is None else transform
+
+    def __len__(self):
+        return len(self.img_ids)
+
+    def __getitem__(self, idx):
+        img = cv2.imread(self.img_ids[idx])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        mask = cv2.imread(self.mask_ids[idx], cv2.IMREAD_GRAYSCALE)
+        border = cv2.imread(self.border_ids[idx], cv2.IMREAD_GRAYSCALE)
+        mask = np.stack([border, mask], axis=2)
         augmented = self.transform(image=img, mask=mask)
         aug_img, aug_mask = augmented["image"], augmented["mask"] / 255.0
         return aug_img, aug_mask

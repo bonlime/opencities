@@ -1,9 +1,11 @@
 import torch
+from torch import nn
 import torchvision.models.segmentation as tv_segm
 from functools import reduce
 import albumentations.pytorch as albu_pt
 import segmentation_models_pytorch as sm
 import pytorch_tools as pt
+
 
 def tv_deeplab(arch, **kwargs):
     if arch == "resnet50":
@@ -24,6 +26,17 @@ class ClipL1Loss(pt.losses.L1Loss):
         if target.min() == 0:
             target = target * 2 - 1
         return torch.nn.functional.mse_loss(input, target, reduction=self.reduction)
+
+class DoubleLoss(pt.losses.Loss):
+    def __init__(self, loss, cls_weights=[10, 1]):
+        super().__init__()
+        self.loss = loss 
+        self.register_buffer("cls_weights", torch.Tensor(cls_weights))
+
+    def forward(self, y_pred, y_true):
+        l1 = self.loss(y_pred[:, 0:1], y_true[:, 0:1]) * self.cls_weights[0]
+        l2 = self.loss(y_pred[:, 1:2], y_true[:, 1:2]) * self.cls_weights[1]
+        return l1 + l2
 
 MODEL_FROM_NAME = {
     "unet": pt.segmentation_models.Unet,
@@ -46,8 +59,10 @@ LOSS_FROM_NAME = {
     "log_jaccard": pt.losses.JaccardLoss(mode="binary", log_loss=True),
     "hinge": pt.losses.BinaryHinge(),
     "whinge": pt.losses.BinaryHinge(pos_weight=3),
-    "focal": pt.losses.BinaryFocalLoss(),
-    "reduced_focal": pt.losses.BinaryFocalLoss(reduced=True),
+    "focal": pt.losses.FocalLoss(mode="binary", alpha=None),
+    "reduced_focal": pt.losses.FocalLoss(mode="binary", combine_thr=0.5, alpha=None),
+    "reduced_double_focal": DoubleLoss(pt.losses.FocalLoss(mode="binary", combine_thr=0.5, alpha=None)),
+    "double_bce": DoubleLoss(pt.losses.CrossEntropyLoss(mode="binary")),
     "mse": pt.losses.MSELoss(),
     "clip_mse": ClipMSELoss(),
     "mae": pt.losses.L1Loss(),
@@ -56,7 +71,7 @@ LOSS_FROM_NAME = {
 
 CHANNEL_FROM_TARGET_TYPE = {
     "distance_map": 0,
-    "mask": 2,
+    "mask": 1,
 }
 
 TARGET_TYPE_FROM_NAME = {
@@ -86,11 +101,12 @@ class TargetWrapper(pt.losses.Loss):
         self.chn = CHANNEL_FROM_TARGET_TYPE[target_type]
 
     def forward(self, pred, target):
-        return self.loss(pred, target[:, self.chn: self.chn+1, ...])
+        return self.loss(pred[:, self.chn: self.chn+1, ...], target[:, self.chn: self.chn+1, ...])
 
 def criterion_from_list(crit_list):
     """expects something like `bce 0.5 dice 0.5` to construct loss"""
-    losses = [TargetWrapper(LOSS_FROM_NAME[l], TARGET_TYPE_FROM_NAME[l]) for l in crit_list[::2]]
+    # losses = [TargetWrapper(LOSS_FROM_NAME[l], TARGET_TYPE_FROM_NAME[l]) for l in crit_list[::2]]
+    losses = [LOSS_FROM_NAME[l] for l in crit_list[::2]]
     losses = [l * float(w) for l, w in zip(losses, crit_list[1::2])]
     return reduce(lambda x, y: x + y, losses)
 

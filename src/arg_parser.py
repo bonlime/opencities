@@ -84,7 +84,7 @@ def parse_args():
     parser = get_parser()
     args = parser.parse_args()
     # add timestamp to name and create this run folder
-    assert args.outdir == "", "Do not pass `outdir` param manually"
+    # assert args.outdir == "", "Do not pass `outdir` param manually"
     timestamp = get_timestamp()
     name = args.name + "_" + timestamp if args.name else timestamp
     args.outdir = os.path.join("logs/", name)

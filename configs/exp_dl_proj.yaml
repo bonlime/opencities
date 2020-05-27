@@ -1,0 +1,57 @@
+## MODEL
+segm_arch: unet
+arch: resnet50
+
+model_params:
+    num_classes: 2
+  # merge_policy: cat
+  # num_fpn_layers: 3
+  # output_stride: 16
+  # aspp_dilation_rates: [2, 4, 6]
+  # encoder_weights: null
+
+## OPTIMIZER
+optim: adamw
+# optim: novograd
+# optim_params:
+#   init_zero: True # works as warmup for novograd. don't know if improves anything
+# lookahead: True
+wd: 1e-5
+# wd: 2e-4
+
+
+## CRITERION
+criterion: [reduced_double_focal,  1]
+# criterion: [bce,  1]
+
+## DATALOADER
+augmentation: light # medium
+bs: 32
+dataset: ["dl_proj"]
+size: 384
+val_size: 512 # validate on whole images
+workers: 8
+
+
+## TRAINING
+# cutmix: True
+# decoder_warmup_epochs: 0
+# dropout: 0.2
+# dropout_epochs: 2
+# train_tta: False
+opt_level: O1
+# phases: [{"ep":[0, 2], "lr": [0, 0.5]}, {"ep":[2, 6], "lr": [0.5, 0.01]}, {"ep":[6, 50], "lr": [ 0.01 , 0], mode: "cos"}]
+phases: [{"ep":[0, 50], "lr": [ 0.001 , 0], mode: "cos"}]
+
+## RESUME & NAME
+name: _dl_p.1.unet_r50_red_f_h_bord
+# resume: logs/8.deeplab_reduced_focal_20200302_183355/model.chpn
+# resume: logs/8.bifpn_reduced_focal_20200302_191335/model.chpn
+# resume: logs/11.bifpn_2l_2dtst_seres101_20200304_233016/model.chpn
+# resume: logs/12.bifpn_3l_1dtst_effnetb3_20200305_134355/model.chpn
+# resume: logs/14.tune_2dtst_bifpn_4l_seres101_hard_augs_20200310_210420//model.chpn
+# resume: logs/13.bifpn_4l_3dtst_seres101_hard_augs_20200307_113309/model.chpn
+# resume: logs/14.tune_2dtst_bifpn_4l_seres101_hard_augs_OS16_20200313_123409/model.chpn
+# name: 14.tune_2dtst_bifpn_4l_seres101_hard_augs
+# name: 15.tune_1dtst_bifpn_4l_seres101_hard_augs_buildings_only
+# name: 15.tune_1dtst_deeplab_seres101_hard_augs_buildings_only

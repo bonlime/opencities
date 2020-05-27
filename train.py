@@ -90,6 +90,10 @@ def main():
         ],
     )
 
+    # freeze first conv
+    model.encoder.conv1.requires_grad_(False)
+    model.encoder.bn1.requires_grad_(False)
+
     if FLAGS.decoder_warmup_epochs > 0:
         ## freeze encoder
         for p in model.encoder.parameters():

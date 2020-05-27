@@ -15,7 +15,7 @@ workers: 8
 wd: 1e-4
 size: 256
 bs: 32
-decoder_warmup_epochs: 10
+decoder_warmup_epochs: 0
 criterion: [bce, 0.5,  dice,  0.5]
 phases: [{"ep":[0, 100], "lr": [ 0.01 , 0], mode: "cos"}]
 # epochs: 100 # replaced by phases now
