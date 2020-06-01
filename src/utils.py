@@ -38,6 +38,12 @@ class DoubleLoss(pt.losses.Loss):
         l2 = self.loss(y_pred[:, 1:2], y_true[:, 1:2]) * self.cls_weights[1]
         return l1 + l2
 
+class DoubleLossOCR(DoubleLoss):
+    def forward(self, y_pred, y_true):
+        l1 = super().forward(y_pred[0], y_true)
+        l2 = super().forward(y_pred[1], y_true)
+        return l1 * 0.4 + l2
+
 MODEL_FROM_NAME = {
     "unet": pt.segmentation_models.Unet,
     "linknet": pt.segmentation_models.Linknet,
@@ -49,6 +55,8 @@ MODEL_FROM_NAME = {
     "deeplab_sm": sm.DeepLabV3,
     "segm_fpn": pt.segmentation_models.SegmentationFPN,
     "segm_bifpn": pt.segmentation_models.SegmentationBiFPN,
+    "hrnet": pt.segmentation_models.hrnet.hrnet_w48,
+    "hrnet_ocr": pt.segmentation_models.hrnet.hrnet_w48_ocr
 }
 
 LOSS_FROM_NAME = {
@@ -60,8 +68,10 @@ LOSS_FROM_NAME = {
     "hinge": pt.losses.BinaryHinge(),
     "whinge": pt.losses.BinaryHinge(pos_weight=3),
     "focal": pt.losses.FocalLoss(mode="binary", alpha=None),
+    "double_focal": DoubleLoss(pt.losses.FocalLoss(mode="binary", alpha=None)),
     "reduced_focal": pt.losses.FocalLoss(mode="binary", combine_thr=0.5, alpha=None),
     "reduced_double_focal": DoubleLoss(pt.losses.FocalLoss(mode="binary", combine_thr=0.5, alpha=None)),
+    "reduced_double_focal_ocr": DoubleLossOCR(pt.losses.FocalLoss(mode="binary", combine_thr=0.5, alpha=None)),
     "double_bce": DoubleLoss(pt.losses.CrossEntropyLoss(mode="binary")),
     "mse": pt.losses.MSELoss(),
     "clip_mse": ClipMSELoss(),
@@ -101,6 +111,8 @@ class TargetWrapper(pt.losses.Loss):
         self.chn = CHANNEL_FROM_TARGET_TYPE[target_type]
 
     def forward(self, pred, target):
+        if isinstance(pred, (list, tuple)) and len(pred) == 2:
+            pred = pred[1] # take only second output of OCR
         return self.loss(pred[:, self.chn: self.chn+1, ...], target[:, self.chn: self.chn+1, ...])
 
 def criterion_from_list(crit_list):

@@ -37,7 +37,10 @@ def main():
     )
 
     ## get model and optimizer
-    model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
+    if "hrnet" in FLAGS.segm_arch:
+        model = MODEL_FROM_NAME[FLAGS.segm_arch](**FLAGS.model_params).cuda()
+    else:
+        model = MODEL_FROM_NAME[FLAGS.segm_arch](FLAGS.arch, **FLAGS.model_params).cuda()
     if FLAGS.train_tta:
         # idea from https://arxiv.org/pdf/2002.09024.pdf paper
         model = pt.tta_wrapper.TTA(model, segm=True, h_flip=True, rotation=[90], merge="max")
@@ -77,7 +80,7 @@ def main():
             pt_clb.ConsoleLogger(),
             pt_clb.FileLogger(FLAGS.outdir),
             pt_clb.SegmCutmix(1, 1) if FLAGS.cutmix else NoClb(),
-            pt_clb.CheckpointSaver(FLAGS.outdir, save_name="model.chpn"),
+            pt_clb.CheckpointSaver(FLAGS.outdir, save_name="model.chpn"), #, monitor="Jaccard", mode="max"),
             sheduler,
             PredictViewer(FLAGS.outdir, num_images=8),
             ScheduledDropout(FLAGS.dropout, FLAGS.dropout_epochs) if FLAGS.dropout else NoClb()
@@ -91,8 +94,8 @@ def main():
     )
 
     # freeze first conv
-    model.encoder.conv1.requires_grad_(False)
-    model.encoder.bn1.requires_grad_(False)
+    # model.encoder.conv1.requires_grad_(False)
+    # model.encoder.bn1.requires_grad_(False)
 
     if FLAGS.decoder_warmup_epochs > 0:
         ## freeze encoder
@@ -129,6 +132,7 @@ def main():
         val_steps=50 if FLAGS.short_epoch else None,
     )
 
+    torch.save(model.state_dict(), f"{FLAGS.outdir}/last_model.chpn")
     # log training hyperparameters to TensorBoard
     # This produces extra folder in logs. don't want this.
     # hparam_dict=vars(FLAGS)

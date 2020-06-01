@@ -1,9 +1,13 @@
 ## MODEL
-segm_arch: unet
-arch: resnet50
+# segm_arch: unet
+# arch: se_resnet50
+segm_arch: hrnet
+arch: None
 
 model_params:
-    num_classes: 2
+  num_classes: 2
+  drop_rate: 0.1
+  # norm_act: leaky_relu
   # merge_policy: cat
   # num_fpn_layers: 3
   # output_stride: 16
@@ -21,12 +25,13 @@ wd: 1e-5
 
 
 ## CRITERION
-criterion: [reduced_double_focal,  1]
+# criterion: [reduced_double_focal,  1, dice, 0.01]
+criterion: [reduced_double_focal,  1, dice, 0.5]
 # criterion: [bce,  1]
 
 ## DATALOADER
 augmentation: light # medium
-bs: 32
+bs: 16
 dataset: ["dl_proj"]
 size: 384
 val_size: 512 # validate on whole images
@@ -34,17 +39,17 @@ workers: 8
 
 
 ## TRAINING
-# cutmix: True
+cutmix: True
 # decoder_warmup_epochs: 0
 # dropout: 0.2
 # dropout_epochs: 2
 # train_tta: False
 opt_level: O1
 # phases: [{"ep":[0, 2], "lr": [0, 0.5]}, {"ep":[2, 6], "lr": [0.5, 0.01]}, {"ep":[6, 50], "lr": [ 0.01 , 0], mode: "cos"}]
-phases: [{"ep":[0, 50], "lr": [ 0.001 , 0], mode: "cos"}]
+phases: [{"ep":[0, 30], "lr": [ 0.001 , 0], mode: "cos"}]
 
 ## RESUME & NAME
-name: _dl_p.1.unet_r50_red_f_h_bord
+name: _dl_p.3.hrnet_w48_l_aug_dice05
 # resume: logs/8.deeplab_reduced_focal_20200302_183355/model.chpn
 # resume: logs/8.bifpn_reduced_focal_20200302_191335/model.chpn
 # resume: logs/11.bifpn_2l_2dtst_seres101_20200304_233016/model.chpn

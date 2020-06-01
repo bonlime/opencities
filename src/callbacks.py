@@ -93,6 +93,8 @@ class PredictViewer(pt.fit_wrapper.callbacks.TensorBoard):
         super().on_epoch_end()
         self.state.model.eval()  # not sure if needed but just in case
         pred = self.state.model(self.img_batch)
+        if isinstance(pred, (list, tuple)):
+            pred = pred[1]
         pred = (pred.sigmoid() * 255).type(torch.uint8)
         grid = make_grid(pred, nrow=self.num_images)
         grid = torch.cat([grid, self.target_grid], axis=1)

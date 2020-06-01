@@ -1,0 +1,32 @@
+## MODEL
+segm_arch: hrnet
+arch: None
+
+model_params:
+  num_classes: 2
+  drop_rate: 0.1
+
+## OPTIMIZERs
+optim: novograd
+wd: 1e-3
+
+
+## CRITERION
+criterion: [reduced_double_focal,  1]
+
+## DATALOADER
+augmentation: hard
+bs: 16
+dataset: ["dl_proj"]
+size: 384
+val_size: 512 # validate on whole images
+workers: 8
+
+
+## TRAINING
+cutmix: True
+opt_level: O1
+phases: [{"ep":[0, 50], "lr": [ 0.01 , 0], mode: "cos"}]
+
+## RESUME & NAME
+name: _dl_p.5.hrnet_w48_nov_redf_fixed_2

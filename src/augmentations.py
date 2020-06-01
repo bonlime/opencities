@@ -14,7 +14,8 @@ def get_aug(aug_type="val", size=256):
        size (int): final size of the crop"""
 
     NORM_TO_TENSOR = albu.Compose([albu.Normalize(), ToTensor()])
-    CROP_AUG = albu.RandomResizedCrop(size, size, scale=(0.05, 0.4))
+    CROP_AUG = albu.RandomResizedCrop(size, size, scale=(0.1, 1), interpolation=cv2.INTER_CUBIC)
+    # CROP_AUG = albu.RandomCrop(size, size)
     VAL_AUG = albu.Compose([albu.CenterCrop(size, size), NORM_TO_TENSOR,])
 
     TEST_AUG = albu.Compose(
@@ -53,11 +54,12 @@ def get_aug(aug_type="val", size=256):
     HARD_AUG = albu.Compose(
         [   
             CROP_AUG,
+            albu.Flip(),
             albu.RandomRotate90(),
             albu.Transpose(),
             albu.RandomGridShuffle(p=0.2),
-            albu.ShiftScaleRotate(scale_limit=0.1, rotate_limit=45, p=0.2),
-            albu.ElasticTransform(alpha_affine=5, p=0.2),
+            # albu.ShiftScaleRotate(scale_limit=0.1, rotate_limit=45, p=0.2),
+            # albu.ElasticTransform(alpha_affine=5, p=0.2),
             # Add occasion blur
             albu.OneOf([albu.GaussianBlur(), albu.GaussNoise(), albu.IAAAdditiveGaussianNoise(), albu.NoOp()]),
             # D4 Augmentations
